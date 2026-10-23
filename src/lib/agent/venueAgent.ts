@@ -383,7 +383,7 @@ function detail(name: string, output: unknown): string | undefined {
   }
 }
 
-export async function runVenueAgent(input: VenuePlanInput, emit: Emit): Promise<VenuePlan> {
+export async function runVenueAgent(input: VenuePlanInput, emit: Emit, signal?: AbortSignal): Promise<VenuePlan> {
   const started = Date.now();
   const s = new VenueSession(input, emit);
   const tools: Record<string, (i: Record<string, unknown>) => Promise<unknown>> = {
@@ -413,6 +413,7 @@ export async function runVenueAgent(input: VenuePlanInput, emit: Emit): Promise<
       finishPrompt: "Please finish by calling submit_booking_plan.",
     },
     emit,
+    signal,
   );
 
   const plan = s.buildPlan();

@@ -327,3 +327,13 @@ Known gaps for later: venue lists in some countries (Brazil, Nigeria) are mostly
 - `npm run venue-agent -- "First Avenue, Minneapolis" --capacity=1550 --notes="..."`.
 - Live tests: First Avenue with "hip hop nights + more local acts" → second hip-hop search on its own, Prof and Four Fists as the local hip hop core, 10 of 10 picks not in the generic answer. Lagos (city only, Afrobeats) works. Artist agent re-tested after the refactor (Gully Boys: Minneapolis, Northfield, Eau Claire, Duluth).
 - ~~Known gap: city-only venue mode in Lagos leaned toward US stars.~~ Fixed. Cause: room size used Qloo's *global* popularity, where Nigerian stars (Davido 0.92, Wizkid 0.95) score below mid-level US acts. Now a third pool (the area's own scene) is sized against *local* popularity (local can lower the floor, never raise the ceiling), acts tied to the country ("Nigerian singer") get a boost, non-musicians (comedians, TV hosts, fictional acts) are filtered, and city-only lists rank by Qloo's local order. Results: Lagos → Kizz Daniel, Teni, Olamide, Tiwa Savage, Davido; Accra → Stonebwoy, Sarkodie, Shatta Wale; Brixton (hip hop, grime) → Skepta, J Hus, Giggs, AJ Tracey; US venues unchanged or better (Dessa, Ben Rector added as locals). Venue city hints now match any city of that name (Northampton MA vs England).
+
+### Backend hardening (Oct 23) ✅
+- **Plan cache** (`src/lib/runPlan.ts`): identical requests (any case/spacing/field order) replay recorded steps + plan in ~1.5 s instead of ~50 s; only agent-made plans are cached (2 weeks).
+- **Examples** (`src/lib/examples.ts`) + `npm run warm`: 6 one-click examples (3 artist, 3 venue) pre-run through the real agent.
+- **Rate limits** (`src/lib/limits.ts`): 6 fresh plans/visitor/hour, 60 cached replays; site-wide 300 agent runs/day, after which plans use the data pipeline. 429 with Retry-After. Shared via Upstash when configured.
+- **Stop on disconnect**: the agent and baseline calls stop when the visitor leaves (verified: stopped after 2 turns).
+- **Usage/cost** per run in `run.usage`: about $0.05–0.11 per plan with Claude Sonnet 5 (all 6 examples: ~$0.44).
+- **Tests**: 26 unit tests (`npm test`) on made-up data: geo, city ranking, route, matching, venue sizing, comparison, brief, validation, cache keys. They caught a real bug: mid-size cities (Springfield) could swallow nearby towns (Northampton); metro radius now scales with population.
+- **README** rewritten (how it works, commands, API, env vars).
+- Still to do at deploy: create Upstash Redis, add its env vars on Vercel, run `npm run warm` with them set.

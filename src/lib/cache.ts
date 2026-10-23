@@ -80,7 +80,7 @@ class UpstashStore implements CacheStore {
     private token: string,
   ) {}
 
-  private async command(args: (string | number)[]) {
+  async command(args: (string | number)[]) {
     const res = await fetch(this.url, {
       method: "POST",
       headers: { Authorization: `Bearer ${this.token}` },
@@ -140,6 +140,38 @@ function createStore(): CacheStore {
 }
 
 export const cache: CacheStore = createStore();
+
+// ---------- counters (rate limits, budgets) ----------
+
+const upstash =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? new UpstashStore(process.env.UPSTASH_REDIS_REST_URL, process.env.UPSTASH_REDIS_REST_TOKEN)
+    : undefined;
+const memoryCounters = new Map<string, { count: number; resetAt: number }>();
+
+/**
+ * Increment a counter that resets every `windowSeconds`, and return the new count.
+ * Shared across server instances when Upstash is configured; per instance otherwise.
+ */
+export async function incrementCounter(key: string, windowSeconds: number): Promise<number> {
+  if (upstash) {
+    try {
+      const count = Number(await upstash.command(["INCR", `fanmap:count:${key}`]));
+      if (count === 1) await upstash.command(["EXPIRE", `fanmap:count:${key}`, windowSeconds]);
+      return count;
+    } catch {
+      // fall through to memory if Redis is unreachable
+    }
+  }
+  const now = Date.now();
+  const entry = memoryCounters.get(key);
+  if (!entry || entry.resetAt < now) {
+    memoryCounters.set(key, { count: 1, resetAt: now + windowSeconds * 1000 });
+    return 1;
+  }
+  entry.count++;
+  return entry.count;
+}
 
 export function cacheKey(...parts: unknown[]) {
   return createHash("sha1").update(JSON.stringify(parts)).digest("hex");

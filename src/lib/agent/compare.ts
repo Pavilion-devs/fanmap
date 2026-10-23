@@ -7,6 +7,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { findCity, distanceKm, type City } from "@/lib/geo/cities";
 import type { Comparison } from "@/lib/types";
 import { MODEL, claude } from "./claude";
+import { addUsage, emptyUsage, type Usage } from "./usage";
 
 const LlmPlan = z.object({
   cities: z.array(z.object({ city: z.string(), reason: z.string() })),
@@ -16,10 +17,11 @@ const LlmPlan = z.object({
 export interface LlmOnlyResult {
   cities: { city: string; reason: string }[];
   reasoning: string;
+  usage?: Usage;
 }
 
 /** The baseline: what a capable LLM says from general knowledge alone. */
-export async function llmOnlyPlan(artist: string, country: string, shows: number): Promise<LlmOnlyResult> {
+export async function llmOnlyPlan(artist: string, country: string, shows: number, signal?: AbortSignal): Promise<LlmOnlyResult> {
   const response = await claude().messages.parse({
     model: MODEL,
     max_tokens: 4000,
@@ -30,9 +32,9 @@ export async function llmOnlyPlan(artist: string, country: string, shows: number
         content: `You're a tour planner. From your own knowledge only, pick the ${shows} best cities in ${country} for a ${artist} tour, where their fans are most likely to show up. Give each city as "City" or "City, State/Region" with a one-line reason, and a one-sentence summary of your reasoning.`,
       },
     ],
-  });
+  }, { signal: signal ?? undefined });
   if (!response.parsed_output) throw new Error("No structured output from the baseline call.");
-  return response.parsed_output;
+  return { ...response.parsed_output, usage: addUsage(emptyUsage(), response.usage, MODEL) };
 }
 
 const SAME_METRO_KM = 45;
@@ -77,10 +79,17 @@ const LlmBooking = z.object({
 export interface LlmOnlyBooking {
   acts: { name: string; reason: string }[];
   reasoning: string;
+  usage?: Usage;
 }
 
 /** The baseline for venue mode: who a capable LLM would book from general knowledge alone. */
-export async function llmOnlyBooking(venue: string, count: number, capacity?: number, genres?: string[]): Promise<LlmOnlyBooking> {
+export async function llmOnlyBooking(
+  venue: string,
+  count: number,
+  capacity?: number,
+  genres?: string[],
+  signal?: AbortSignal,
+): Promise<LlmOnlyBooking> {
   const response = await claude().messages.parse({
     model: MODEL,
     max_tokens: 4000,
@@ -93,9 +102,9 @@ export async function llmOnlyBooking(venue: string, count: number, capacity?: nu
         }${genres?.length ? `, focusing on ${genres.join(", ")}` : ""}, acts its crowd would love and that fit the room. One line of reason each, and a one-sentence summary of your reasoning.`,
       },
     ],
-  });
+  }, { signal: signal ?? undefined });
   if (!response.parsed_output) throw new Error("No structured output from the baseline call.");
-  return response.parsed_output;
+  return { ...response.parsed_output, usage: addUsage(emptyUsage(), response.usage, MODEL) };
 }
 
 const simpleName = (s: string) =>

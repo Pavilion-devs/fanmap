@@ -44,6 +44,7 @@ export interface SubmittedPlan {
   brief_markdown: string;
 }
 
+import { ensureBrandsInBrief } from "./brief";
 import { FatalToolError, ToolInputError } from "./loop";
 export { ToolInputError };
 
@@ -292,23 +293,6 @@ export class ArtistSession {
     if (missing.length) await this.scoutCities({ cities: missing });
   }
 
-  /**
-   * The brief must stand on its own: if the agent pointed at brand ideas instead of listing them,
-   * put the bullets into the "Support and partners" section.
-   */
-  private briefWithBrands(markdown: string, pitches: { name: string; pitch: string }[]) {
-    const mentioned = pitches.filter((p) => markdown.toLowerCase().includes(p.name.toLowerCase())).length;
-    if (!pitches.length || mentioned >= Math.ceil(pitches.length / 2)) return markdown;
-    const bullets = pitches.map((p) => `- **${p.name}**: ${p.pitch}`).join("\n");
-    const lines = markdown.split("\n").filter((l) => !/brand (ideas|pitches|partnership ideas)[^.]*\b(above|below|separately)\b/i.test(l));
-    const start = lines.findIndex((l) => /^##\s+support and partners/i.test(l));
-    if (start < 0) return `${lines.join("\n")}\n\n## Brand partners\n${bullets}`;
-    const next = lines.findIndex((l, i) => i > start && /^##\s/.test(l));
-    const at = next < 0 ? lines.length : next;
-    lines.splice(at, 0, "", "Brand partnership ideas:", bullets, "");
-    return lines.join("\n").replace(/\n{3,}/g, "\n\n");
-  }
-
   /** Start/end indices for a rebuilt route, from what the agent asked for (or the user's start city). */
   private routeEnds(cities: TourCity[]) {
     const index = (name: string | null | undefined) => {
@@ -382,7 +366,7 @@ export class ArtistSession {
       brief: this.submitted?.brief_markdown
         ? {
             title: `${artist.entity.name}: ${this.country.name} tour brief`,
-            markdown: this.briefWithBrands(this.submitted.brief_markdown, this.submitted.brand_pitches),
+            markdown: ensureBrandsInBrief(this.submitted.brief_markdown, this.submitted.brand_pitches),
           }
         : undefined,
       notices: this.notices,

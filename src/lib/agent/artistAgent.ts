@@ -49,7 +49,7 @@ function userMessage(input: ArtistPlanInput) {
   return lines.filter(Boolean).join("\n");
 }
 
-export async function runArtistAgent(input: ArtistPlanInput, emit: Emit): Promise<ArtistPlan> {
+export async function runArtistAgent(input: ArtistPlanInput, emit: Emit, signal?: AbortSignal): Promise<ArtistPlan> {
   const started = Date.now();
   const session = new ArtistSession(input, emit);
 
@@ -65,6 +65,7 @@ export async function runArtistAgent(input: ArtistPlanInput, emit: Emit): Promis
       finishPrompt: "Please finish by calling plan_route if needed, then submit_plan.",
     },
     emit,
+    signal,
   );
 
   await session.ensureScouted(session.submitted!.cities.map((c) => c.label));

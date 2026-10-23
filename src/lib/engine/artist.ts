@@ -42,7 +42,7 @@ function similarity(a: string, b: string) {
  * Does a search result plausibly match what the user typed? Qloo search always returns its
  * closest guess, so "zzqq band" would otherwise become a real artist. Typos still pass.
  */
-function plausibleMatch(query: string, name: string) {
+export function plausibleMatch(query: string, name: string) {
   const q = normName(query);
   const n = normName(name);
   const strip = (s: string) => s.replace(/^the /, "");
@@ -108,7 +108,7 @@ const AGE_BANDS: Record<string, { label: string; min: number; max: number }> = {
 };
 
 /** "Mostly 18–34", or "Mostly under 25 and 45–54" when two separate groups stand out. */
-function ageSummary(leans: Record<string, number>) {
+export function ageSummary(leans: Record<string, number>) {
   const order = Object.keys(AGE_BANDS);
   const strongKeys = order.filter((band) => (leans[band] ?? 0) > 0.1);
   if (!strongKeys.length) return "All ages";

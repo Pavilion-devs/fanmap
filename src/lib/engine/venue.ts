@@ -46,7 +46,7 @@ function placeFor(city: City, lat: number, lon: number): Place {
  * Prefers results that look like venues and whose name matches what was typed.
  */
 /** Split "Hard Rock Cafe Lagos" / "First Avenue, Minneapolis" into a venue name and a city hint. */
-function splitQuery(query: string) {
+export function splitQuery(query: string) {
   const parts = query.split(",").map((s) => s.trim()).filter(Boolean);
   if (parts.length > 1) return { name: parts[0], cityHint: parts.slice(1).join(", ") };
   const words = query.trim().split(/\s+/);
@@ -168,7 +168,7 @@ export function sizeBand(capacity?: number): SizeBand {
 }
 
 /** Popularity cut-offs for a band, measured against the local scene's own distribution. */
-function localCutoffs(pops: number[], rel: [number, number]): [number, number] {
+export function localCutoffs(pops: number[], rel: [number, number]): [number, number] {
   if (pops.length < 8) return [0, 1];
   const sorted = [...pops].sort((a, b) => a - b);
   const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))];
@@ -201,7 +201,7 @@ const mentionsPlace = (e: QlooEntity, city: City) => {
 
 /** Qloo's "artist" type also covers comedians, TV hosts and actors; a booking list wants musicians. */
 const NOT_MUSIC = /^(comedy|stand ?up comedy|comedian|alternative comedy|sketch comedy|reality tv|reality tv music|actor|actress|tv personality|television|drag queen|drag performance|podcast|magician|youtuber|fictional|presenter)$/i;
-function isMusicAct(e: QlooEntity, requestedTagIds: string[]) {
+export function isMusicAct(e: QlooEntity, requestedTagIds: string[]) {
   if (requestedTagIds.some((t) => /comedy|drag/.test(t))) return true;
   const genres = genreNames(e).map((g) => g.trim());
   if (genres.some((g) => /^fictional$/i.test(g))) return false;
@@ -220,7 +220,7 @@ const DEMONYMS: Record<string, string[]> = {
 };
 
 /** The artist's profile or genre tags tie them to this country ("a Nigerian singer", "Nigeria"). */
-function fromCountryOf(e: QlooEntity, countryName: string, code: string) {
+export function fromCountryOf(e: QlooEntity, countryName: string, code: string) {
   const words = [normName(countryName), ...(DEMONYMS[code] ?? [])];
   const text = ` ${normName(e.description ?? "")} ${genreNames(e).map(normName).join(" ")} `;
   return words.some((w) => w && text.includes(` ${w} `));

@@ -12,6 +12,8 @@ import { templateBrief, templateHeadline, templateVenueBrief, templateVenueHeadl
 import { MODEL, hasClaude } from "./agent/claude";
 import { buildBookingComparison, buildComparison, llmOnlyBooking, llmOnlyPlan } from "./agent/compare";
 import { findCountry } from "./geo/cities";
+import { RunAbortedError } from "./agent/loop";
+import { mergeUsage } from "./agent/usage";
 
 type Emit = (event: PlanEvent) => void;
 
@@ -40,6 +42,7 @@ export function validateArtistInput(raw: unknown): ArtistPlanInput {
 
 /** Errors worth falling back from (agent/LLM problems), as opposed to "no such artist". */
 function agentProblem(err: unknown) {
+  if (err instanceof RunAbortedError || err instanceof Anthropic.APIUserAbortError) return false;
   return err instanceof Anthropic.APIError || (err instanceof Error && /agent|model|max_tokens|turns/i.test(err.message));
 }
 
@@ -50,23 +53,31 @@ function describeAgentError(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
-export async function planArtist(input: ArtistPlanInput, emit: Emit): Promise<ArtistPlan> {
+export interface PlanOptions {
+  signal?: AbortSignal;
+  /** false = skip Claude and use the data pipeline (e.g. the daily budget is spent) */
+  useAgent?: boolean;
+}
+
+export async function planArtist(input: ArtistPlanInput, emit: Emit, options: PlanOptions = {}): Promise<ArtistPlan> {
+  const { signal } = options;
+  const useAgent = hasClaude() && options.useAgent !== false;
   const started = Date.now();
   const shows = input.shows ?? 10;
   const country = findCountry(input.region ?? "United States")!;
 
   // the "without Qloo" baseline runs alongside the agent
-  const baseline = hasClaude()
-    ? llmOnlyPlan(input.artist, country.name, shows).catch((err) => {
+  const baseline = useAgent
+    ? llmOnlyPlan(input.artist, country.name, shows, signal).catch((err) => {
         console.warn("[fanmap] baseline failed:", err instanceof Error ? err.message : err);
         return undefined;
       })
     : Promise.resolve(undefined);
 
   let plan: ArtistPlan;
-  if (hasClaude()) {
+  if (useAgent) {
     try {
-      plan = await runArtistAgent(input, emit);
+      plan = await runArtistAgent(input, emit, signal);
     } catch (err) {
       if (!agentProblem(err)) throw err;
       const reason = describeAgentError(err);
@@ -77,7 +88,7 @@ export async function planArtist(input: ArtistPlanInput, emit: Emit): Promise<Ar
     }
   } else {
     plan = await runArtistPlan(input, emit);
-    plan.run = { engine: "pipeline", toolCalls: [], turns: 0, ms: 0, fallbackReason: "No Claude API key configured." };
+    plan.run = { engine: "pipeline", toolCalls: [], turns: 0, ms: 0, fallbackReason: hasClaude() ? "Daily agent budget reached." : "No Claude API key configured." };
   }
 
   plan.headline ??= templateHeadline(plan);
@@ -94,6 +105,7 @@ export async function planArtist(input: ArtistPlanInput, emit: Emit): Promise<Ar
   }
 
   if (plan.run) {
+    plan.run.usage = mergeUsage(plan.run.usage, llm?.usage);
     plan.run.ms = Date.now() - started;
     plan.run.model ??= plan.run.engine === "agent" ? MODEL : undefined;
   }
@@ -124,20 +136,22 @@ export function validateVenueInput(raw: unknown): VenuePlanInput {
   };
 }
 
-export async function planVenue(input: VenuePlanInput, emit: Emit): Promise<VenuePlan> {
+export async function planVenue(input: VenuePlanInput, emit: Emit, options: PlanOptions = {}): Promise<VenuePlan> {
+  const { signal } = options;
+  const useAgent = hasClaude() && options.useAgent !== false;
   const started = Date.now();
   const COUNT = 10;
-  const baseline = hasClaude()
-    ? llmOnlyBooking(input.venue, COUNT, input.capacity, input.genres).catch((err) => {
+  const baseline = useAgent
+    ? llmOnlyBooking(input.venue, COUNT, input.capacity, input.genres, signal).catch((err) => {
         console.warn("[fanmap] venue baseline failed:", err instanceof Error ? err.message : err);
         return undefined;
       })
     : Promise.resolve(undefined);
 
   let plan: VenuePlan;
-  if (hasClaude()) {
+  if (useAgent) {
     try {
-      plan = await runVenueAgent(input, emit);
+      plan = await runVenueAgent(input, emit, signal);
     } catch (err) {
       if (!agentProblem(err)) throw err;
       const reason = describeAgentError(err);
@@ -148,7 +162,7 @@ export async function planVenue(input: VenuePlanInput, emit: Emit): Promise<Venu
     }
   } else {
     plan = await runVenuePlan(input, emit);
-    plan.run = { engine: "pipeline", toolCalls: [], turns: 0, ms: 0, fallbackReason: "No Claude API key configured." };
+    plan.run = { engine: "pipeline", toolCalls: [], turns: 0, ms: 0, fallbackReason: hasClaude() ? "Daily agent budget reached." : "No Claude API key configured." };
   }
 
   plan.headline ??= templateVenueHeadline(plan);
@@ -160,6 +174,7 @@ export async function planVenue(input: VenuePlanInput, emit: Emit): Promise<Venu
     emit({ type: "partial", key: "comparison", value: plan.comparison });
   }
   if (plan.run) {
+    plan.run.usage = mergeUsage(plan.run.usage, llm?.usage);
     plan.run.ms = Date.now() - started;
     plan.run.model ??= plan.run.engine === "agent" ? MODEL : undefined;
   }

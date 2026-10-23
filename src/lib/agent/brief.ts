@@ -72,3 +72,20 @@ export function templateVenueBrief(plan: VenuePlan): Brief {
   ];
   return { title: `${plan.venue.name}: booking brief`, markdown: md.join("\n") };
 }
+
+/**
+ * The brief must stand on its own: if the agent pointed at brand ideas ("listed above") instead of
+ * listing them, put the bullets into the "Support and partners" section.
+ */
+export function ensureBrandsInBrief(markdown: string, pitches: { name: string; pitch: string }[]) {
+  const mentioned = pitches.filter((p) => markdown.toLowerCase().includes(p.name.toLowerCase())).length;
+  if (!pitches.length || mentioned >= Math.ceil(pitches.length / 2)) return markdown;
+  const bullets = pitches.map((p) => `- **${p.name}**: ${p.pitch}`).join("\n");
+  const lines = markdown.split("\n").filter((l) => !/brand (ideas|pitches|partnership ideas)[^.]*\b(above|below|separately)\b/i.test(l));
+  const start = lines.findIndex((l) => /^##\s+support and partners/i.test(l));
+  if (start < 0) return `${lines.join("\n")}\n\n## Brand partners\n${bullets}`;
+  const next = lines.findIndex((l, i) => i > start && /^##\s/.test(l));
+  const at = next < 0 ? lines.length : next;
+  lines.splice(at, 0, "", "Brand partnership ideas:", bullets, "");
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n");
+}

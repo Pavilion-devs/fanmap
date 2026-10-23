@@ -104,8 +104,13 @@ const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
 const HUB_MIN_POP = 100_000;
 
-/** Bigger cities pull in suburbs from further away: ~25 km for 300k people, ~50 km for London. */
-const metroRadiusKm = (population: number) => Math.max(25, 25 + 15 * Math.log10(Math.max(population, HUB_MIN_POP) / 100_000));
+/**
+ * How far a city's metro reaches: grows with population (~18 km for 150k people, ~33 km for
+ * Minneapolis, capped at 55 km for London or New York). Smaller cities don't swallow nearby
+ * towns that are their own markets (Springfield vs. Northampton, 30 km apart).
+ */
+const metroRadiusKm = (population: number) =>
+  Math.min(55, Math.max(18, 12 + 10 * Math.log2(Math.max(population, HUB_MIN_POP) / 100_000)));
 
 /** GeoNames uses some official names people don't say. */
 const DISPLAY_NAMES: Record<string, string> = {

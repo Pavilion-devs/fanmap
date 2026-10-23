@@ -129,6 +129,17 @@ export interface RunInfo {
   ms: number;
   /** why the plan fell back to the pipeline, if it did */
   fallbackReason?: string;
+  /** tokens and estimated cost (agent + baseline comparison) */
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    estimatedCostUsd: number;
+    calls: number;
+  };
+  /** served from the plan cache (an identical request ran before) */
+  cached?: boolean;
 }
 
 export interface TourCity {
