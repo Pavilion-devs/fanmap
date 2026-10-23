@@ -72,19 +72,28 @@ function clusterCells(cells: HeatCell[]): RawCluster[] {
   return clusters;
 }
 
+/**
+ * GeoNames lists sub-areas next to the towns people actually name ("North Chicopee",
+ * "Amherst Center", "South Portland Gardens"). Treat them as variants when the base town exists nearby.
+ */
+const VARIANT = /^(?:(?:North|South|East|West|Upper|Lower|New|Old)\s+(.+)|(.+?)\s+(?:Center|Centre|Gardens|Heights|Village|Township|Junction|Station))$/;
+
+export function isVariantName(city: City, others: City[]) {
+  const m = VARIANT.exec(city.name);
+  const base = m?.[1] ?? m?.[2];
+  if (!base) return false;
+  return others.some((o) => o.id !== city.id && o.name === base && distanceKm(o, city) < 25);
+}
+
 /** Pick the city that names a cluster: as close to the fans as possible, but big enough to host shows. */
 function pickAnchor(lat: number, lon: number, minPop: number, country: string) {
-  const near = citiesNear(lat, lon, ANCHOR_RADIUS_KM, minPop).filter((c) => c.country === country);
+  const all = citiesNear(lat, lon, ANCHOR_RADIUS_KM, 0).filter((c) => c.country === country);
+  const near = all.filter((c) => c.population >= minPop && !isVariantName(c, all));
   if (!near.length) return undefined;
+  // the nearest town to the fans, unless a much bigger city is about as close
   let best = near[0];
-  let bestScore = -Infinity;
   for (const c of near) {
-    // each 10x in population is worth ~12 km of distance
-    const score = Math.log10(c.population) * 12 - c.km;
-    if (score > bestScore) {
-      best = c;
-      bestScore = score;
-    }
+    if (c.population >= 5 * best.population && c.km <= best.km * 1.5 + 5) best = c;
   }
   return { anchor: best, near };
 }
@@ -138,7 +147,11 @@ export function rankCities(
   // otherwise to the best nearby town. Clusters with the same anchor are merged.
   const groups = new Map<number, { anchor: City; parts: RawCluster[] }>();
   for (const c of raw) {
-    const anchor = metroHub(c.lat, c.lon, countryCode) ?? pickAnchor(c.lat, c.lon, MIN_ANCHOR_POP[venueSize], countryCode)?.anchor;
+    // small-town clusters are named after the town nearest their strongest area (cells[0]),
+    // not the averaged centre, which can drift toward a bigger neighbour
+    const best = c.cells[0];
+    const anchor =
+      metroHub(c.lat, c.lon, countryCode) ?? pickAnchor(best.lat, best.lon, MIN_ANCHOR_POP[venueSize], countryCode)?.anchor;
     if (!anchor) continue;
     const group = groups.get(anchor.id);
     if (group) group.parts.push(c);
@@ -194,7 +207,7 @@ export function rankCities(
       anchor,
       label: displayLabel(anchor),
       nearby: near
-        .filter((n) => n.id !== anchor.id && n.population >= 20_000)
+        .filter((n) => n.id !== anchor.id && n.population >= 20_000 && !isVariantName(n, near) && !n.name.includes(anchor.name))
         .slice(0, 4)
         .map((n) => n.name),
       lat: anchor.lat,

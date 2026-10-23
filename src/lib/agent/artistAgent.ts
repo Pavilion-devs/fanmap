@@ -25,7 +25,7 @@ How to work:
 1. Call find_artist first.
 2. Then, in parallel: map_fans, get_audience, find_support_acts, find_brands.
 3. Pick a shortlist of candidates (about the number of shows plus 3) and call scout_cities once with all of them.
-4. Choose the final cities. Fan concentration matters most; then market size (a show needs a crowd), whether good venues and a local scene exist, and a route that makes geographic sense. Include a big market only if fans there rank well. Never put two stops in the same metro. Follow the user's wishes (start city, cities to avoid, size, notes) unless the data strongly argues otherwise, and if so say why in the brief.
+4. Choose the final cities. Fan concentration matters most: a city where fans rank in the top 0.5% usually beats a much bigger city ranked top 2-3%, because that's where shows sell out. Then consider market size (a show needs a crowd), whether good venues and a local scene exist, and a route that makes geographic sense. Include a big, lower-ranked market only when the venue size needs it or the route needs a stop there. Never put two stops in the same metro. The user's wishes come first: start city, cities to avoid, venue size, and preferences in their notes (for example "college towns welcome" means favour the small, high-ranking towns; "big rooms only" means favour large markets). Only go against a wish when the data clearly argues otherwise, and then say why in the brief.
 5. Call plan_route with the final cities, then submit_plan.
 Run independent tool calls in parallel. Before a tool call, write at most one short sentence on what you found or what you're checking next; the user sees these live.
 
@@ -39,7 +39,7 @@ The brief (brief_markdown) is for a promoter or booking agent. Markdown, about 3
 ## Summary - 2-3 sentences: who the audience is and the key insight about where they are.
 ## Route - a table with columns Day | City | Suggested venue | Local opener.
 ## Why these cities - one bullet per city with the evidence.
-## Support and partners - recommended support acts, and the brand partnership ideas.
+## Support and partners - recommended support acts, then each brand partnership idea as its own bullet (the brief must stand on its own).
 ## Notes - honest caveats (data limits, taste is not ticket sales) and anything the user asked for that the data didn't support.`;
 
 function userMessage(input: ArtistPlanInput) {

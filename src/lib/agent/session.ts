@@ -65,6 +65,7 @@ export class ArtistSession {
   scouted = new Map<string, Scouted>();
   route: RouteStop[] = [];
   submitted?: SubmittedPlan;
+  private routeRequest: { start: string | null; end: string | null } = { start: null, end: null };
 
   constructor(
     readonly input: ArtistPlanInput,
@@ -121,10 +122,10 @@ export class ArtistSession {
     };
   }
 
-  async mapFans({ venue_size }: { venue_size: VenueSize | null }) {
+  async mapFans({ venue_size }: { venue_size: VenueSize | "auto" }) {
     const artist = this.requireArtist();
     // the ranking only filters city size when a size was chosen explicitly
-    const rankingSize: VenueSize = venue_size ?? this.input.venueSize ?? "any";
+    const rankingSize: VenueSize = venue_size && venue_size !== "auto" ? venue_size : (this.input.venueSize ?? "any");
     this.venueSize = rankingSize !== "any" ? rankingSize : inferVenueSize(artist.entity);
     this.map = await heatmap(artist.signalIds, this.country.name);
     this.candidates = rankCities(this.map, this.country.code, { venueSize: rankingSize, limit: 25 });
@@ -243,13 +244,20 @@ export class ArtistSession {
     };
   }
 
-  async planRoute({ cities, start_city }: { cities: string[]; start_city: string | null }) {
+  async planRoute({ cities, start_city, end_city }: { cities: string[]; start_city: string | null; end_city: string | null }) {
     const picked = cities.map((l) => this.resolveCandidate(l)).filter((c): c is CityCluster => !!c);
     if (picked.length < 2) throw new ToolInputError("Give at least two candidate city labels from map_fans.");
-    let start = 0;
-    const from = start_city ? findCity(start_city)[0] : undefined;
-    if (from) start = picked.reduce((best, c, i) => (distanceKm(from, c) < distanceKm(from, picked[best]) ? i : best), 0);
-    this.route = planRoute(picked.map((c) => ({ label: c.label, lat: c.lat, lon: c.lon })), start);
+    // the stop nearest a named city (it may be a candidate label or any city name)
+    const nearestTo = (name: string | null) => {
+      const place = name ? (this.resolveCandidate(name) ?? findCity(name)[0]) : undefined;
+      if (!place) return undefined;
+      return picked.reduce((best, c, i) => (distanceKm(place, c) < distanceKm(place, picked[best]) ? i : best), 0);
+    };
+    this.routeRequest = { start: start_city, end: end_city };
+    this.route = planRoute(picked.map((c) => ({ label: c.label, lat: c.lat, lon: c.lon })), {
+      start: nearestTo(start_city),
+      end: nearestTo(end_city),
+    });
     this.emit({ type: "partial", key: "route", value: this.route });
     return {
       stops: this.route.map((s) => ({ day: s.day + 1, city: s.cityLabel, km_from_previous: s.km })),
@@ -282,6 +290,33 @@ export class ArtistSession {
       return c && !this.scouted.has(c.label);
     });
     if (missing.length) await this.scoutCities({ cities: missing });
+  }
+
+  /**
+   * The brief must stand on its own: if the agent pointed at brand ideas instead of listing them,
+   * put the bullets into the "Support and partners" section.
+   */
+  private briefWithBrands(markdown: string, pitches: { name: string; pitch: string }[]) {
+    const mentioned = pitches.filter((p) => markdown.toLowerCase().includes(p.name.toLowerCase())).length;
+    if (!pitches.length || mentioned >= Math.ceil(pitches.length / 2)) return markdown;
+    const bullets = pitches.map((p) => `- **${p.name}**: ${p.pitch}`).join("\n");
+    const lines = markdown.split("\n").filter((l) => !/brand (ideas|pitches|partnership ideas)[^.]*\b(above|below|separately)\b/i.test(l));
+    const start = lines.findIndex((l) => /^##\s+support and partners/i.test(l));
+    if (start < 0) return `${lines.join("\n")}\n\n## Brand partners\n${bullets}`;
+    const next = lines.findIndex((l, i) => i > start && /^##\s/.test(l));
+    const at = next < 0 ? lines.length : next;
+    lines.splice(at, 0, "", "Brand partnership ideas:", bullets, "");
+    return lines.join("\n").replace(/\n{3,}/g, "\n\n");
+  }
+
+  /** Start/end indices for a rebuilt route, from what the agent asked for (or the user's start city). */
+  private routeEnds(cities: TourCity[]) {
+    const index = (name: string | null | undefined) => {
+      const place = name ? (this.resolveCandidate(name) ?? findCity(name)[0]) : undefined;
+      if (!place) return undefined;
+      return cities.reduce((best, c, i) => (distanceKm(place, c.place) < distanceKm(place, cities[best].place) ? i : best), 0);
+    };
+    return { start: index(this.routeRequest.start ?? this.input.startCity), end: index(this.routeRequest.end) };
   }
 
   buildPlan(): ArtistPlan {
@@ -318,7 +353,7 @@ export class ArtistSession {
     const sameCities = cities.length === routeLabels.size && cities.every((c) => routeLabels.has(c.place.label));
     const route = sameCities
       ? this.route
-      : planRoute(cities.map((c) => ({ label: c.place.label, lat: c.place.lat, lon: c.place.lon })));
+      : planRoute(cities.map((c) => ({ label: c.place.label, lat: c.place.lat, lon: c.place.lon })), this.routeEnds(cities));
 
     // openers: the agent's picks first (in its order), then the rest
     const pickedOpeners = (this.submitted?.openers ?? [])
@@ -345,7 +380,10 @@ export class ArtistSession {
       brands,
       headline: this.submitted?.headline,
       brief: this.submitted?.brief_markdown
-        ? { title: `${artist.entity.name}: ${this.country.name} tour brief`, markdown: this.submitted.brief_markdown }
+        ? {
+            title: `${artist.entity.name}: ${this.country.name} tour brief`,
+            markdown: this.briefWithBrands(this.submitted.brief_markdown, this.submitted.brand_pitches),
+          }
         : undefined,
       notices: this.notices,
       generatedAt: new Date().toISOString(),

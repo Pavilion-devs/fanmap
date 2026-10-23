@@ -37,6 +37,11 @@ const VENUE_TAGS = [
   "urn:tag:genre:place:arena",
 ];
 
+const SIZE_TAGS: Record<"arena" | "theatre", string[]> = {
+  arena: ["urn:tag:genre:place:arena", "urn:tag:genre:place:stadium", "urn:tag:genre:place:amphitheater"],
+  theatre: ["urn:tag:genre:place:concert_hall", "urn:tag:genre:place:live_music_venue", "urn:tag:genre:place:theater_company"],
+};
+
 /** Words in Qloo place categories that make a good pre- or after-show spot. */
 const AFTER_SHOW = /\b(bar|pub|brewery|brewpub|taproom|cocktail|wine bar|beer|night ?club|karaoke|tavern|speakeasy)\b/i;
 const PRE_SHOW = /\b(restaurant|cafe|café|coffee|roastery|bakery|record|vinyl|book ?store|bookshop|diner|pizza|pizzeria|taco|taqueria|food|ramen|deli|tea|noodle|burger|bistro|brunch|dumpling|sandwich|thrift|vintage)\b/i;
@@ -90,18 +95,27 @@ export async function findVenues(
   at: { lat: number; lon: number },
   options: { radiusKm?: number; size?: VenueSize; take?: number } = {},
 ): Promise<VenueMatch[]> {
-  const places = await insightsEntities(
-    "urn:entity:place",
-    {
-      "signal.interests.entities": signalIds,
-      "filter.location": point(at.lat, at.lon),
-      "filter.location.radius": Math.round((options.radiusKm ?? 25) * 1000),
-      "filter.tags": VENUE_TAGS,
-    },
-    40,
-  );
-
   const size = options.size ?? "any";
+  const query = (tags: string[], radiusKm: number, take: number) =>
+    insightsEntities(
+      "urn:entity:place",
+      {
+        "signal.interests.entities": signalIds,
+        "filter.location": point(at.lat, at.lon),
+        "filter.location.radius": Math.round(radiusKm * 1000),
+        "filter.tags": tags,
+      },
+      take,
+    );
+
+  // Big rooms are rare and rarely "taste-matched" to the top, so an arena/theatre tour gets
+  // its own search for rooms of that size (a little wider, since arenas sit outside centres).
+  const radius = options.radiusKm ?? 25;
+  const [general, sized] = await Promise.all([
+    query(VENUE_TAGS, radius, 40),
+    size === "arena" || size === "theatre" ? query(SIZE_TAGS[size], radius + 10, 20).catch(() => []) : Promise.resolve([]),
+  ]);
+  const places = [...general, ...sized];
   const score = (p: QlooEntity) => {
     const key = categoryKey(p);
     let s = p.affinity ?? 0;

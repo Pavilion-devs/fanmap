@@ -188,7 +188,7 @@ export async function runArtistPlan(input: ArtistPlanInput, emit: Emit = () => {
         start = cities.reduce((best, c, i) => (distanceKm(from, c.place) < distanceKm(from, cities[best].place) ? i : best), 0);
       }
     }
-    return planRoute(cities.map((c) => ({ label: c.place.label, lat: c.place.lat, lon: c.place.lon })), start);
+    return planRoute(cities.map((c) => ({ label: c.place.label, lat: c.place.lat, lon: c.place.lon })), { start });
   }, (r) => `${r.reduce((n, s) => n + s.km, 0).toLocaleString()} km over ${(r.at(-1)?.day ?? 0) + 1} days`);
   emit({ type: "partial", key: "route", value: route ?? [] });
 

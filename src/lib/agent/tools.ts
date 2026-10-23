@@ -29,9 +29,9 @@ export const ARTIST_TOOLS: Tool[] = [
     strict: true,
     input_schema: obj({
       venue_size: {
-        type: ["string", "null"],
-        enum: ["club", "theatre", "arena", "any", null],
-        description: "Filter out cities too small for this venue size. null = use the user's choice or 'any'.",
+        type: "string",
+        enum: ["auto", "club", "theatre", "arena", "any"],
+        description: "Filter out cities too small for this venue size. 'auto' = use the user's choice, or no size filter.",
       },
     }),
   },
@@ -72,11 +72,13 @@ export const ARTIST_TOOLS: Tool[] = [
   },
   {
     name: "plan_route",
-    description: "Order cities into an efficient route and space show days by travel distance.",
+    description:
+      "Order cities into an efficient route and space show days by travel distance. Set start_city / end_city to honour the user's wishes; the route returned is final, so don't reorder it yourself.",
     strict: true,
     input_schema: obj({
       cities: { type: "array", items: { type: "string" }, description: "Candidate labels from map_fans" },
       start_city: { type: ["string", "null"], description: "Where the tour should start, if the user said so" },
+      end_city: { type: ["string", "null"], description: "Where the tour should finish, if the user said so" },
     }),
   },
   {
@@ -159,7 +161,7 @@ export async function runTool(session: ArtistSession, name: string, input: Recor
     case "compare_artists":
       return session.compareArtists(input as { other_artist: string });
     case "plan_route":
-      return session.planRoute(input as { cities: string[]; start_city: string | null });
+      return session.planRoute(input as { cities: string[]; start_city: string | null; end_city: string | null });
     case "submit_plan":
       return session.submitPlan(input as unknown as SubmittedPlan);
     default:
