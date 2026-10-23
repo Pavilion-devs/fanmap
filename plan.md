@@ -304,3 +304,11 @@ Findings that changed the plan:
 Tested: Phoebe Bridgers (US, UK), Zach Bryan, MJ Lenderman, Bad Bunny, Gully Boys (US), Burna Boy (UK, Nigeria), Asake (Nigeria), Rammstein and Taylor Swift (Germany), Anitta (Brazil).
 
 Known gaps for later: venue lists in some countries (Brazil, Nigeria) are mostly generic event spaces; some small-town labels (e.g. "Bellview, FL" instead of Pensacola).
+
+### Day 3 (Oct 23): agent, streaming, brief, comparison 🟡 (built; live agent run blocked on API key)
+- **Agent** (`src/lib/agent/`): Claude Opus 5.5 with a hand-written tool loop over the engine. Tools: find_artist, map_fans, get_audience, find_support_acts, find_brands, scout_cities, compare_artists, plan_route, submit_plan. The agent picks cities (fan concentration first, then market, venues, geography, user wishes), writes city reasons, picks openers, brand pitches, a headline and the Markdown tour brief. Its notes between tool calls stream as "thought" events (`display: "updates"`); server-side refusal fallback is on.
+- **Comparison**: a parallel no-tools call (structured output) gives the generic AI answer; cities match by distance (same metro = within 45 km).
+- **Fallback**: if Claude isn't available or fails, the plain pipeline finishes the plan with a template brief. Tested with a rejected key: works, ~3 s.
+- **API**: `POST /api/plan` streams newline-delimited JSON events (steps, thoughts, partial results, result/error). Input validation, unknown artists rejected (name similarity check), friendly errors.
+- `npm run agent -- "Artist" --shows=8 --start="City" --notes="..."` runs the whole thing from the terminal.
+- Blocker: the Anthropic key in `.env` returns 401 (invalid x-api-key). Needs a working key to test the agent path.

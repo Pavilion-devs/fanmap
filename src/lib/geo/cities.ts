@@ -149,6 +149,11 @@ export function findCity(query: string, limit = 5): City[] {
   return (filtered.length ? filtered : pool).slice(0, limit); // CITIES is already sorted by population
 }
 
+const TAKES_THE = /^(United States|United Kingdom|Netherlands|Philippines|United Arab Emirates|Czech Republic|Dominican Republic|Bahamas|Gambia|Maldives|Central African Republic|Democratic Republic|Republic of)/;
+
+/** Country name for use in a sentence: "the United States", "the Netherlands", "Germany". */
+export const countryPhrase = (name: string) => (TAKES_THE.test(name) ? `the ${name}` : name);
+
 /** "Portland, ME" for the US, "Edinburgh, United Kingdom" elsewhere. */
 export function cityLabel(c: City) {
   if (c.country === "US" && c.regionCode) return `${c.name}, ${c.regionCode}`;

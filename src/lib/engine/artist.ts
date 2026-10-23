@@ -23,8 +23,36 @@ export interface ResolvedArtist {
 const THIN_LISTENERS = 15_000;
 const THIN_POPULARITY = 0.45;
 
+/** Edit-distance similarity, 0..1 (1 = identical). */
+function similarity(a: string, b: string) {
+  if (a === b) return 1;
+  const m = a.length;
+  const n = b.length;
+  if (!m || !n) return 0;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return 1 - prev[n] / Math.max(m, n);
+}
+
+/**
+ * Does a search result plausibly match what the user typed? Qloo search always returns its
+ * closest guess, so "zzqq band" would otherwise become a real artist. Typos still pass.
+ */
+function plausibleMatch(query: string, name: string) {
+  const q = normName(query);
+  const n = normName(name);
+  const strip = (s: string) => s.replace(/^the /, "");
+  if (!q || !n) return false;
+  if (strip(q) === strip(n) || n.includes(q) || q.includes(n)) return true;
+  return similarity(strip(q), strip(n)) >= 0.75;
+}
+
 export async function resolveArtist(query: string): Promise<ResolvedArtist | undefined> {
-  const results = await searchEntities(query, ["urn:entity:artist"], 6);
+  const results = (await searchEntities(query, ["urn:entity:artist"], 6)).filter((r) => plausibleMatch(query, r.name));
   if (!results.length) return undefined;
 
   const q = normName(query);
@@ -79,16 +107,24 @@ const AGE_BANDS: Record<string, { label: string; min: number; max: number }> = {
   "55_and_older": { label: "55+", min: 55, max: 99 },
 };
 
-/** "Mostly 18–34" from the over-represented age bands. */
+/** "Mostly 18–34", or "Mostly under 25 and 45–54" when two separate groups stand out. */
 function ageSummary(leans: Record<string, number>) {
-  const strong = Object.entries(leans)
-    .filter(([band, lean]) => lean > 0.1 && AGE_BANDS[band])
-    .map(([band]) => AGE_BANDS[band]);
-  if (!strong.length) return "All ages";
-  const min = Math.min(...strong.map((b) => b.min));
-  const max = Math.max(...strong.map((b) => b.max));
-  if (max >= 99) return `Mostly ${min}+`;
-  return `Mostly ${min}–${max}`;
+  const order = Object.keys(AGE_BANDS);
+  const strongKeys = order.filter((band) => (leans[band] ?? 0) > 0.1);
+  if (!strongKeys.length) return "All ages";
+
+  // group consecutive bands into ranges
+  const groups: { min: number; max: number }[] = [];
+  let last = -2;
+  for (const key of strongKeys) {
+    const i = order.indexOf(key);
+    const band = AGE_BANDS[key];
+    if (i === last + 1 && groups.length) groups[groups.length - 1].max = band.max;
+    else groups.push({ min: band.min, max: band.max });
+    last = i;
+  }
+  const label = (g: { min: number; max: number }) => (g.max >= 99 ? `${g.min}+` : g.min <= 18 && g.max === 24 ? "under 25" : `${g.min}–${g.max}`);
+  return `Mostly ${groups.map(label).join(" and ")}`;
 }
 
 export async function getAudience(signalIds: string[], traits: string[]): Promise<Audience | undefined> {

@@ -114,6 +114,21 @@ export interface ArtistPlanInput {
   shows?: number; // default 10
   startCity?: string;
   venueSize?: "club" | "theatre" | "arena" | "any";
+  /** free-text wishes for the agent, e.g. "skip New York, end in my hometown, college towns welcome" */
+  notes?: string;
+}
+
+/** How a plan was produced, shown to users and judges as proof of the agent's work. */
+export interface RunInfo {
+  engine: "agent" | "pipeline";
+  model?: string;
+  /** tool calls the agent made, in order */
+  toolCalls: { tool: string; ms: number }[];
+  /** agent turns (model calls) */
+  turns: number;
+  ms: number;
+  /** why the plan fell back to the pipeline, if it did */
+  fallbackReason?: string;
 }
 
 export interface TourCity {
@@ -165,9 +180,12 @@ export interface ArtistPlan {
   /** tour-wide support acts: share the headliner's audience, ideally smaller */
   openers: (ArtistRef & { fit: number; smaller: boolean })[];
   brands: BrandMatch[];
+  /** the one-line takeaway, e.g. "Her fans cluster in New England college towns, not the big coastal cities." */
+  headline?: string;
   comparison?: Comparison;
   brief?: Brief;
   notices: Notice[];
+  run?: RunInfo;
   generatedAt: string;
 }
 

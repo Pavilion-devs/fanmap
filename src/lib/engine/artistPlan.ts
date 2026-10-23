@@ -5,7 +5,7 @@
  * The AI agent (Day 3) sits on top of these same tools; this pipeline is also its fallback.
  */
 import { heatmap } from "@/lib/qloo/api";
-import { findCity, findCountry, distanceKm } from "@/lib/geo/cities";
+import { countryPhrase, findCity, findCountry, distanceKm } from "@/lib/geo/cities";
 import type { ArtistPlan, ArtistPlanInput, FanArea, Notice, PlanEvent, TourCity } from "@/lib/types";
 import { findBrands, findOpeners, getAudience, inferVenueSize, resolveArtist } from "./artist";
 import { rankCities, topShareLabel, type CityCluster, type VenueSize } from "./cities";
@@ -38,7 +38,7 @@ async function step<T>(emit: Emit, id: string, label: string, fn: () => Promise<
 export const possessive = (name: string) => (name.endsWith("s") ? `${name}'` : `${name}'s`);
 
 export function cityReason(c: CityCluster, countryName: string) {
-  const parts = [`Fans here rank in the ${topShareLabel(c.topShare)} of all areas in ${countryName}`];
+  const parts = [`Fans here rank in the ${topShareLabel(c.topShare)} of all areas in ${countryPhrase(countryName)}`];
   if (c.cells >= 5) parts.push(`across ${c.cells} strong fan areas`);
   if (c.nearby.length) parts.push(`with ${c.nearby.slice(0, 2).join(" and ")} nearby`);
   return parts.join(", ") + ".";
@@ -73,7 +73,7 @@ export async function runArtistPlan(input: ArtistPlanInput, emit: Emit = () => {
     step(
       emit,
       "fan_map",
-      `Mapping where ${whose} fans are in ${country.name}`,
+      `Mapping where ${whose} fans are in ${countryPhrase(country.name)}`,
       async () => {
         const map = await heatmap(artist.signalIds, country.name);
         const cities = rankCities(map, country.code, { venueSize: rankingSize, limit: Math.max(shows + 5, 15) });
@@ -99,11 +99,11 @@ export async function runArtistPlan(input: ArtistPlanInput, emit: Emit = () => {
     ),
   ]);
 
-  if (!ranked || !ranked.cities.length) throw new Error(`Not enough fan data for ${artist.entity.name} in ${country.name}.`);
+  if (!ranked || !ranked.cities.length) throw new Error(`Not enough fan data for ${artist.entity.name} in ${countryPhrase(country.name)}.`);
   const { map } = ranked;
 
   if (map.totalCells < LIMITED_DATA_AREAS) {
-    notice({ code: "limited_data", message: `Qloo has limited data for ${country.name}, so treat this plan as a starting point.` });
+    notice({ code: "limited_data", message: `Qloo has limited data for ${countryPhrase(country.name)}, so treat this plan as a starting point.` });
   }
 
   const fanMap: FanArea[] = map.cells.slice(0, 300).map((c, i) => ({
@@ -118,7 +118,7 @@ export async function runArtistPlan(input: ArtistPlanInput, emit: Emit = () => {
 
   const selected = ranked.cities.slice(0, shows);
   if (selected.length < shows) {
-    notice({ code: "limited_data", message: `Only ${selected.length} cities in ${country.name} stand out for this artist.` });
+    notice({ code: "limited_data", message: `Only ${selected.length} cities in ${countryPhrase(country.name)} stand out for this artist.` });
   }
   emit({
     type: "partial",
@@ -206,6 +206,5 @@ export async function runArtistPlan(input: ArtistPlanInput, emit: Emit = () => {
     notices,
     generatedAt: new Date().toISOString(),
   };
-  emit({ type: "result", plan });
   return plan;
 }
