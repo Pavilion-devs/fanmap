@@ -66,3 +66,59 @@ export function buildComparison(
     headline,
   };
 }
+
+// ---------- venue mode ----------
+
+const LlmBooking = z.object({
+  acts: z.array(z.object({ name: z.string(), reason: z.string() })),
+  reasoning: z.string(),
+});
+
+export interface LlmOnlyBooking {
+  acts: { name: string; reason: string }[];
+  reasoning: string;
+}
+
+/** The baseline for venue mode: who a capable LLM would book from general knowledge alone. */
+export async function llmOnlyBooking(venue: string, count: number, capacity?: number, genres?: string[]): Promise<LlmOnlyBooking> {
+  const response = await claude().messages.parse({
+    model: MODEL,
+    max_tokens: 4000,
+    output_config: { effort: "low", format: zodOutputFormat(LlmBooking) },
+    messages: [
+      {
+        role: "user",
+        content: `You're a talent buyer. From your own knowledge only, list the ${count} best artists for ${venue} to book${
+          capacity ? ` (capacity about ${capacity})` : ""
+        }${genres?.length ? `, focusing on ${genres.join(", ")}` : ""}, acts its crowd would love and that fit the room. One line of reason each, and a one-sentence summary of your reasoning.`,
+      },
+    ],
+  });
+  if (!response.parsed_output) throw new Error("No structured output from the baseline call.");
+  return response.parsed_output;
+}
+
+const simpleName = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/['’`]/g, "")
+    .replace(/^the\s+/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+export function buildBookingComparison(llm: LlmOnlyBooking, fanmapActs: string[]): Comparison {
+  const llmNames = new Set(llm.acts.map((a) => simpleName(a.name)));
+  const onlyFanmap = fanmapActs.filter((a) => !llmNames.has(simpleName(a)));
+  const headline =
+    onlyFanmap.length === 0
+      ? `Fanmap and the generic answer agree on all ${fanmapActs.length} acts, now backed by fan data.`
+      : `${onlyFanmap.length} of ${fanmapActs.length} Fanmap picks don't appear in the generic AI answer.`;
+  return {
+    llmOnly: { items: llm.acts.map((a) => a.name), reasoning: llm.reasoning },
+    fanmap: { items: fanmapActs },
+    onlyFanmap,
+    headline,
+  };
+}

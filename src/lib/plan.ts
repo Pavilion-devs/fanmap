@@ -4,11 +4,13 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { runArtistPlan } from "@/lib/engine/artistPlan";
-import type { ArtistPlan, ArtistPlanInput, PlanEvent } from "@/lib/types";
+import { runVenuePlan } from "@/lib/engine/venuePlan";
+import type { ArtistPlan, ArtistPlanInput, PlanEvent, VenuePlan, VenuePlanInput } from "@/lib/types";
+import { runVenueAgent } from "./agent/venueAgent";
 import { runArtistAgent } from "./agent/artistAgent";
-import { templateBrief, templateHeadline } from "./agent/brief";
+import { templateBrief, templateHeadline, templateVenueBrief, templateVenueHeadline } from "./agent/brief";
 import { MODEL, hasClaude } from "./agent/claude";
-import { buildComparison, llmOnlyPlan } from "./agent/compare";
+import { buildBookingComparison, buildComparison, llmOnlyBooking, llmOnlyPlan } from "./agent/compare";
 import { findCountry } from "./geo/cities";
 
 type Emit = (event: PlanEvent) => void;
@@ -41,6 +43,13 @@ function agentProblem(err: unknown) {
   return err instanceof Anthropic.APIError || (err instanceof Error && /agent|model|max_tokens|turns/i.test(err.message));
 }
 
+function describeAgentError(err: unknown) {
+  if (err instanceof Anthropic.AuthenticationError) return "The Claude API key was rejected.";
+  if (err instanceof Anthropic.RateLimitError) return "Claude is rate-limited right now.";
+  if (err instanceof Anthropic.APIError) return `Claude API error (${err.status ?? "network"}).`;
+  return err instanceof Error ? err.message : String(err);
+}
+
 export async function planArtist(input: ArtistPlanInput, emit: Emit): Promise<ArtistPlan> {
   const started = Date.now();
   const shows = input.shows ?? 10;
@@ -60,16 +69,7 @@ export async function planArtist(input: ArtistPlanInput, emit: Emit): Promise<Ar
       plan = await runArtistAgent(input, emit);
     } catch (err) {
       if (!agentProblem(err)) throw err;
-      const reason =
-        err instanceof Anthropic.AuthenticationError
-          ? "The Claude API key was rejected."
-          : err instanceof Anthropic.RateLimitError
-            ? "Claude is rate-limited right now."
-            : err instanceof Anthropic.APIError
-              ? `Claude API error (${err.status ?? "network"}).`
-              : err instanceof Error
-                ? err.message
-                : String(err);
+      const reason = describeAgentError(err);
       console.warn("[fanmap] agent failed, using pipeline:", reason);
       emit({ type: "thought", text: "Switching to the direct data pipeline to finish the plan." });
       plan = await runArtistPlan(input, emit);
@@ -93,6 +93,72 @@ export async function planArtist(input: ArtistPlanInput, emit: Emit): Promise<Ar
     emit({ type: "partial", key: "comparison", value: plan.comparison });
   }
 
+  if (plan.run) {
+    plan.run.ms = Date.now() - started;
+    plan.run.model ??= plan.run.engine === "agent" ? MODEL : undefined;
+  }
+  emit({ type: "result", plan });
+  return plan;
+}
+
+// ---------------- venue mode ----------------
+
+export function validateVenueInput(raw: unknown): VenuePlanInput {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const venue = typeof r.venue === "string" ? r.venue.trim() : "";
+  if (!venue) throw new PlanInputError("Tell us which venue (or city) to plan for.");
+  if (venue.length > 150) throw new PlanInputError("That venue name is too long.");
+  const capacity = Number(r.capacity);
+  const genres = Array.isArray(r.genres)
+    ? r.genres
+    : typeof r.genres === "string"
+      ? r.genres.split(",")
+      : [];
+  const notes = typeof r.notes === "string" && r.notes.trim() ? r.notes.trim().slice(0, 500) : undefined;
+  return {
+    mode: "venue",
+    venue,
+    capacity: Number.isFinite(capacity) && capacity >= 20 ? Math.min(Math.round(capacity), 100_000) : undefined,
+    genres: genres.map((g) => String(g).trim()).filter(Boolean).slice(0, 4),
+    notes,
+  };
+}
+
+export async function planVenue(input: VenuePlanInput, emit: Emit): Promise<VenuePlan> {
+  const started = Date.now();
+  const COUNT = 10;
+  const baseline = hasClaude()
+    ? llmOnlyBooking(input.venue, COUNT, input.capacity, input.genres).catch((err) => {
+        console.warn("[fanmap] venue baseline failed:", err instanceof Error ? err.message : err);
+        return undefined;
+      })
+    : Promise.resolve(undefined);
+
+  let plan: VenuePlan;
+  if (hasClaude()) {
+    try {
+      plan = await runVenueAgent(input, emit);
+    } catch (err) {
+      if (!agentProblem(err)) throw err;
+      const reason = describeAgentError(err);
+      console.warn("[fanmap] venue agent failed, using pipeline:", reason);
+      emit({ type: "thought", text: "Switching to the direct data pipeline to finish the plan." });
+      plan = await runVenuePlan(input, emit);
+      plan.run = { engine: "pipeline", toolCalls: [], turns: 0, ms: 0, fallbackReason: reason.slice(0, 200) };
+    }
+  } else {
+    plan = await runVenuePlan(input, emit);
+    plan.run = { engine: "pipeline", toolCalls: [], turns: 0, ms: 0, fallbackReason: "No Claude API key configured." };
+  }
+
+  plan.headline ??= templateVenueHeadline(plan);
+  plan.brief ??= templateVenueBrief(plan);
+
+  const llm = await baseline;
+  if (llm) {
+    plan.comparison = buildBookingComparison(llm, plan.picks.slice(0, COUNT).map((p) => p.artist.name));
+    emit({ type: "partial", key: "comparison", value: plan.comparison });
+  }
   if (plan.run) {
     plan.run.ms = Date.now() - started;
     plan.run.model ??= plan.run.engine === "agent" ? MODEL : undefined;

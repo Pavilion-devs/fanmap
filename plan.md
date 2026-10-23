@@ -318,8 +318,12 @@ Known gaps for later: venue lists in some countries (Brazil, Nigeria) are mostly
   - Zach Bryan, US club, "small rooms, end in Oklahoma": ends at Cain's Ballroom, Tulsa; Samantha Crain as confirmed-local opener; 6 of 7 cities not in the generic answer.
 - Fixes from testing: strict-schema enum with null rejected (use "auto"), cluster names come from the town nearest the strongest fan area (Northampton, not "North Chicopee"), GeoNames sub-area names filtered, `plan_route` takes `end_city`, brand ideas guaranteed in the brief, arena/theatre tours get a size-specific venue search (London → The O2).
 
-### Day 4 (Oct 23): venue mode 🟡 (engine done; venue agent not yet)
+### Day 4 (Oct 23): venue mode ✅
 - `src/lib/engine/venue.ts` + `venuePlan.ts`: venue lookup (typos, word order, "Venue City" without comma, city-only fallback), acts this venue's fans love sized to capacity, local acts (vs. two other big cities), double bills (smaller/local support, shared taste), crowd, brands.
 - `npm run venue -- "First Avenue, Minneapolis" --capacity=1550 --genres="indie"`. Tested: First Avenue, The Iron Horse, Cain's Ballroom, O2 Academy Brixton, Lagos.
 - Agent loop moved to `src/lib/agent/loop.ts` (shared by both modes); artist agent refactored onto it (type-checks; needs one live re-run).
-- Left: venue agent session + tools + prompt, venue LLM-only comparison, `/api/plan` venue mode, live tests.
+- Venue agent (`src/lib/agent/venueAgent.ts`): tools find_venue, find_acts (repeatable with genre_focus), find_local_acts, get_crowd, find_brands, build_double_bills, compare_artists, submit_booking_plan. Writes picks with reasons and slots, double bills, local nights, brand ideas and a booking brief.
+- Venue comparison: same question to Claude with no data, matched by act name. `/api/plan` accepts `{ mode: "venue", venue, capacity?, genres?, notes? }`.
+- `npm run venue-agent -- "First Avenue, Minneapolis" --capacity=1550 --notes="..."`.
+- Live tests: First Avenue with "hip hop nights + more local acts" → second hip-hop search on its own, Prof and Four Fists as the local hip hop core, 10 of 10 picks not in the generic answer. Lagos (city only, Afrobeats) works. Artist agent re-tested after the refactor (Gully Boys: Minneapolis, Northfield, Eau Claire, Duluth).
+- Known gap: city-only venue mode in thin-data countries (Lagos) leans toward global stars; a named venue gives much sharper picks.

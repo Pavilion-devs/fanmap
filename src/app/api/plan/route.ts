@@ -2,10 +2,11 @@
  * POST /api/plan — run a Fanmap plan and stream progress.
  *
  * Body (artist mode): { mode: "artist", artist, region?, shows?, venueSize?, startCity?, notes? }
+ * Body (venue mode):  { mode: "venue", venue, capacity?, genres?, notes? }
  * Response: newline-delimited JSON, one PlanEvent per line (see src/lib/types.ts),
  * ending with { type: "result" } or { type: "error" }.
  */
-import { planArtist, validateArtistInput, PlanInputError } from "@/lib/plan";
+import { planArtist, planVenue, validateArtistInput, validateVenueInput, PlanInputError } from "@/lib/plan";
 import type { PlanEvent } from "@/lib/types";
 
 // agent runs can take a minute or two on a cold cache
@@ -20,11 +21,17 @@ export async function POST(request: Request) {
   }
 
   const mode = (body as { mode?: string })?.mode ?? "artist";
-  if (mode !== "artist") return Response.json({ error: `Mode "${mode}" isn't available yet.` }, { status: 400 });
+  if (mode !== "artist" && mode !== "venue") return Response.json({ error: `Unknown mode "${mode}".` }, { status: 400 });
 
-  let input;
+  let run: (emit: (event: PlanEvent) => void) => Promise<unknown>;
   try {
-    input = validateArtistInput(body);
+    if (mode === "venue") {
+      const input = validateVenueInput(body);
+      run = (emit) => planVenue(input, emit);
+    } else {
+      const input = validateArtistInput(body);
+      run = (emit) => planArtist(input, emit);
+    }
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : "Invalid input." }, { status: 400 });
   }
@@ -44,10 +51,10 @@ export async function POST(request: Request) {
       request.signal.addEventListener("abort", () => (open = false));
 
       try {
-        await planArtist(input, emit);
+        await run(emit);
       } catch (err) {
         const message =
-          err instanceof PlanInputError || (err instanceof Error && /couldn't find|not enough fan data|unknown country/i.test(err.message))
+          err instanceof PlanInputError || (err instanceof Error && /couldn't find|not enough fan data|unknown country|recognise/i.test(err.message))
             ? err.message
             : "Something went wrong while planning. Please try again.";
         console.error("[fanmap] plan failed:", err);

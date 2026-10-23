@@ -13,7 +13,8 @@
     "cities": "tsx --env-file=.env scripts/cities.ts",
     "plan": "tsx --env-file=.env scripts/plan.ts",
     "agent": "tsx --env-file=.env scripts/agent.ts",
-    "venue": "tsx --env-file=.env scripts/venue.ts"
+    "venue": "tsx --env-file=.env scripts/venue.ts",
+    "venue-agent": "tsx --env-file=.env scripts/venue-agent.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.2.0",

@@ -1,5 +1,5 @@
 /** A data-only tour brief, used when the agent isn't available. */
-import type { ArtistPlan, Brief } from "@/lib/types";
+import type { ArtistPlan, Brief, VenuePlan } from "@/lib/types";
 import { possessive } from "@/lib/engine/artistPlan";
 
 export function templateHeadline(plan: ArtistPlan) {
@@ -36,4 +36,39 @@ export function templateBrief(plan: ArtistPlan): Brief {
   ];
 
   return { title: `${plan.artist.name}: ${plan.region.name} tour brief`, markdown: md.join("\n") };
+}
+
+/** A data-only booking brief for venue mode, used when the agent isn't available. */
+export function templateVenueHeadline(plan: VenuePlan) {
+  const top = plan.picks.slice(0, 3).map((p) => p.artist.name);
+  const who = plan.venue.qlooId ? `${plan.venue.name}'s fans` : `Music fans around ${plan.venue.place.city}`;
+  return `${who} love ${top.slice(0, -1).join(", ")}${top.length > 1 ? " and " : ""}${top.at(-1)}.`;
+}
+
+export function templateVenueBrief(plan: VenuePlan): Brief {
+  const slot = (p: VenuePlan["picks"][number]) =>
+    p.artist.popularity >= 0.975 ? "headliner" : p.confirmedLocal ? "local night" : "support / mid-bill";
+  const md = [
+    "## Summary",
+    `${plan.headline ?? templateVenueHeadline(plan)}${plan.crowd ? ` The crowd is ${plan.crowd.summary.toLowerCase()}.` : ""} Sized for: ${plan.sizeBand}.`,
+    "",
+    "## Who to book",
+    "| Act | Why | Slot |",
+    "|---|---|---|",
+    ...plan.picks.slice(0, 10).map((p) => `| ${p.artist.name} | ${p.reason} | ${slot(p)} |`),
+    "",
+    "## Double bills",
+    ...(plan.doubleBills.length ? plan.doubleBills.map((b) => `- **${b.headliner.name} + ${b.support.name}**: ${b.reason}`) : ["- None found."]),
+    "",
+    "## Local scene",
+    plan.localOpeners.length ? plan.localOpeners.slice(0, 6).map((l) => `${l.name}${l.confirmedLocal ? " (local)" : ""}`).join(", ") : "No local acts stood out.",
+    "",
+    "## Partners",
+    ...(plan.brands.length ? plan.brands.slice(0, 5).map((b) => `- ${b.name}`) : ["- No brand data."]),
+    "",
+    "## Notes",
+    "- Based on what this venue's fans like (Qloo taste data), not on ticket sales.",
+    ...plan.notices.map((n) => `- ${n.message}`),
+  ];
+  return { title: `${plan.venue.name}: booking brief`, markdown: md.join("\n") };
 }
