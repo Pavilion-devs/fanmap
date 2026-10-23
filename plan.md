@@ -275,3 +275,32 @@ To keep the two halves from colliding, the backend is built against a **fixed ou
 5. **Venue mode:** a core feature. Artist mode is built first and leads the stage demo; venue mode is built right after on the same engine (Day 4), not optional.
 7. **Build order:** core system (backend) first, frontend second. The frontend gets a high-standard UI and a strong onboarding, with its own dedicated days.
 6. **Region:** global, with the US as the default.
+
+---
+
+## 12. Progress log
+
+### Day 1 (Oct 23): setup ✅
+Next.js 16 app, cached Qloo client, world city index (GeoNames), output format (`src/lib/types.ts`), public repo with MIT licence.
+
+### Day 2 (Oct 23): artist-mode data engine ✅
+`npm run plan -- "Artist" --region="Country" --shows=10 --size=club|theatre|arena` runs the whole pipeline (~10–30 s cold, instant when cached).
+
+What's built (`src/lib/engine/`):
+- **cities.ts**: fan map → metro clusters → ranked tour cities. Score = taste (how high the best area ranks nationally) + depth (number of *strong* areas, top ~3%) + market size + activity. Suburbs merge into big-city metros; weaker results inside a stronger metro are merged.
+- **places.ts**: venues and pre/after-show spots from Qloo alone, using each place's category (`primary_genre`). Music venues get a bonus; banquet/wedding/conference halls are dropped.
+- **local.ts**: local openers. Two pools per city (taste-near-city + local scene), drop acts that appear in many cities, same genre lane only, minimum fit 0.8, "confirmed local" when the description or a genre tag names the city. Each city gets its own acts.
+- **artist.ts**: artist lookup (with similar-artist fallback for thin data), audience, tour openers, brands (with fallback).
+- **route.ts**: nearest-neighbour + 2-opt route, show days spaced by distance.
+- **artistPlan.ts**: runs it all and streams progress events in the agreed format.
+
+Findings that changed the plan:
+- **5.5 resolved:** venues come from Qloo only (category tags work well); Ticketmaster/OpenStreetMap not needed.
+- City-level heatmaps (`output.heatmap.boundary=urn:entity:locality`) took 12.5 min and 217 MB, so they're unusable. Our own grouping stays.
+- Qloo caps `take` at 50 (client now pages automatically) and rate-limits bursts (client now caps concurrent requests at 6 and backs off with jitter).
+- Genre tags have different types per endpoint (`urn:tag:genre`, `urn:tag:genre:music`, `urn:tag:genre:qloo`), and some genre tags are hometowns ("Boston", "Minneapolis").
+- `filter.results.entities` scores a fixed list of entities against a signal (used for opener fit; will power venue mode).
+
+Tested: Phoebe Bridgers (US, UK), Zach Bryan, MJ Lenderman, Bad Bunny, Gully Boys (US), Burna Boy (UK, Nigeria), Asake (Nigeria), Rammstein and Taylor Swift (Germany), Anitta (Brazil).
+
+Known gaps for later: venue lists in some countries (Brazil, Nigeria) are mostly generic event spaces; some small-town labels (e.g. "Bellview, FL" instead of Pensacola).

@@ -38,6 +38,11 @@ export interface QlooEntity {
   address?: string;
   /** Last.fm listeners, a rough size signal for artists */
   listeners?: number;
+  /** places: main category, e.g. { id: "urn:tag:genre:place:live_music_venue", name: "Live music venue" } */
+  category?: { id: string; name: string };
+  /** places: permanently closed */
+  closed?: boolean;
+  website?: string;
 }
 
 export interface HeatCell {
@@ -79,6 +84,9 @@ type RawEntity = {
     address?: string;
     image?: { url?: string };
     external?: { lastfm?: { listeners?: number } };
+    primary_genre?: { id?: string; name?: string } | null;
+    is_closed?: boolean;
+    website?: string;
   };
 };
 
@@ -96,6 +104,11 @@ function normalizeEntity(e: RawEntity): QlooEntity {
     location: e.location,
     address: e.properties?.address,
     listeners: e.properties?.external?.lastfm?.listeners,
+    category: e.properties?.primary_genre?.id
+      ? { id: e.properties.primary_genre.id, name: e.properties.primary_genre.name ?? "" }
+      : undefined,
+    closed: e.properties?.is_closed || undefined,
+    website: e.properties?.website,
   };
 }
 
@@ -106,17 +119,24 @@ export async function searchEntities(query: string, types: EntityType[] = ["urn:
   return qlooGet<{ results?: RawEntity[] }, QlooEntity[]>(
     "/search",
     { query, types, take },
-    { transform: (raw) => (raw.results ?? []).map(normalizeEntity), variant: "entities" },
+    { transform: (raw) => (raw.results ?? []).map(normalizeEntity), variant: "entities-v2" },
   );
 }
 
-/** General insights query returning entities (similar artists, brands, places, ...). */
-export async function insightsEntities(filterType: EntityType, params: Params, take = 10) {
-  return qlooGet<{ results?: { entities?: RawEntity[] } }, QlooEntity[]>(
-    "/v2/insights",
-    { "filter.type": filterType, take, ...params },
-    { transform: (raw) => (raw.results?.entities ?? []).map(normalizeEntity), variant: "entities" },
-  );
+const MAX_TAKE = 50; // Qloo's limit per request
+
+/** General insights query returning entities (similar artists, brands, places, ...). Pages past 50 results. */
+export async function insightsEntities(filterType: EntityType, params: Params, take = 10): Promise<QlooEntity[]> {
+  const pages = Math.ceil(Math.max(take, 1) / MAX_TAKE);
+  const fetchPage = (page: number) =>
+    qlooGet<{ results?: { entities?: RawEntity[] } }, QlooEntity[]>(
+      "/v2/insights",
+      { "filter.type": filterType, ...params, take: Math.min(take, MAX_TAKE), page: pages > 1 ? page : undefined },
+      { transform: (raw) => (raw.results?.entities ?? []).map(normalizeEntity), variant: "entities-v2" },
+    );
+  if (pages === 1) return fetchPage(1);
+  const results = await Promise.all(Array.from({ length: pages }, (_, i) => fetchPage(i + 1)));
+  return results.flat().slice(0, take);
 }
 
 const HEATMAP_KEEP = 600;

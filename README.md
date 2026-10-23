@@ -26,10 +26,12 @@ npm run dev
 | `ANTHROPIC_API_KEY` | The planning agent |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Optional: shared cache in production (otherwise in-memory, plus `.cache/` locally) |
 
-Check the Qloo connection:
+Try the engine from the terminal:
 
 ```bash
-npm run smoke -- "Phoebe Bridgers" "United States"
+npm run smoke -- "Phoebe Bridgers" "United States"     # check the Qloo connection
+npm run cities -- "Zach Bryan|United States"             # ranked tour cities only
+npm run plan -- "Phoebe Bridgers" --region="United Kingdom" --shows=8 --size=theatre   # full artist plan
 ```
 
 ## Project layout
@@ -37,6 +39,7 @@ npm run smoke -- "Phoebe Bridgers" "United States"
 ```
 src/lib/qloo/     Qloo API client (server-only, cached, retries) and typed endpoints
 src/lib/geo/      Offline world city index: map areas → city names, name lookups
+src/lib/engine/   Fanmap engine: city ranking, venues, local openers, route, artist plan
 src/lib/cache.ts  Server-side cache (memory → Upstash Redis or local files)
 src/lib/types.ts  Output format shared by the engine and the UI
 src/data/         Processed city list

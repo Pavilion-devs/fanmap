@@ -59,10 +59,15 @@ export interface VenueMatch {
   lat?: number;
   lon?: number;
   kind: "performance" | "pre_show" | "after_show" | "other";
+  /** Qloo's category, e.g. "Live music venue", "Cocktail bar" */
+  category?: string;
+  /** rough size class for performance venues */
+  tier?: "club" | "theatre" | "arena";
+  /** fans' affinity for this place, 0..1 */
   affinity: number;
   distanceKm?: number;
-  source: "qloo" | "ticketmaster" | "openstreetmap";
-  capacity?: number;
+  website?: string;
+  source: "qloo";
 }
 
 export interface FanArea {
@@ -108,7 +113,7 @@ export interface ArtistPlanInput {
   region?: string;
   shows?: number; // default 10
   startCity?: string;
-  venueSize?: "club" | "theatre" | "any";
+  venueSize?: "club" | "theatre" | "arena" | "any";
 }
 
 export interface TourCity {
@@ -118,9 +123,25 @@ export interface TourCity {
   score: number;
   /** plain-English reason backed by data */
   reason: string;
+  /** the data behind the score, for tooltips and the brief */
+  stats: {
+    /** e.g. "top 0.1%": how this area ranks among all areas in the country */
+    topShare: string;
+    /** number of strong fan areas in this metro */
+    fanAreas: number;
+    marketPopulation: number;
+    nearby: string[];
+  };
   venues: VenueMatch[];
-  localOpener?: ArtistRef;
+  localOpeners: LocalOpener[];
   spots: VenueMatch[]; // pre/after-show places
+}
+
+export interface LocalOpener extends ArtistRef {
+  /** closeness to the headliner's taste, 0..1 */
+  fit: number;
+  /** the artist's description mentions this city or region */
+  confirmedLocal: boolean;
 }
 
 export interface RouteStop {
@@ -141,7 +162,8 @@ export interface ArtistPlan {
   fanMap: FanArea[];
   cities: TourCity[];
   route: RouteStop[];
-  openers: ArtistRef[];
+  /** tour-wide support acts: share the headliner's audience, ideally smaller */
+  openers: (ArtistRef & { fit: number; smaller: boolean })[];
   brands: BrandMatch[];
   comparison?: Comparison;
   brief?: Brief;

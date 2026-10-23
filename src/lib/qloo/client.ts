@@ -9,7 +9,23 @@ import { cached, cacheKey } from "@/lib/cache";
 const BASE_URL = process.env.QLOO_BASE_URL ?? "https://hackathon.api.qloo.com";
 const DEFAULT_TTL = 60 * 60 * 24 * 7; // a week: taste data changes slowly
 const TIMEOUT_MS = 45_000;
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 4;
+/** Max Qloo requests in flight at once (per server instance), to stay under the rate limit. */
+const MAX_CONCURRENT = 6;
+
+let active = 0;
+const waiting: (() => void)[] = [];
+
+async function withSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (active >= MAX_CONCURRENT) await new Promise<void>((resolve) => waiting.push(resolve));
+  active++;
+  try {
+    return await fn();
+  } finally {
+    active--;
+    waiting.shift()?.();
+  }
+}
 
 export type Params = Record<string, string | number | boolean | undefined | null | (string | number)[]>;
 
@@ -48,24 +64,31 @@ async function rawGet<T>(path: string, params: Params): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    let retryAfterMs = 0;
     try {
-      const res = await fetch(url, {
-        headers: { "X-Api-Key": apiKey(), Accept: "application/json" },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-        cache: "no-store",
-      });
+      const res = await withSlot(() =>
+        fetch(url, {
+          headers: { "X-Api-Key": apiKey(), Accept: "application/json" },
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+          cache: "no-store",
+        }),
+      );
       if (res.ok) return (await res.json()) as T;
 
       const body = await res.text().catch(() => "");
       const error = new QlooError(`Qloo ${res.status} on ${path}: ${body.slice(0, 300)}`, res.status, path);
       // 4xx (other than 429) means the request itself is wrong — retrying won't help
       if (res.status !== 429 && res.status < 500) throw error;
+      retryAfterMs = Number(res.headers.get("retry-after")) * 1000 || 0;
       lastError = error;
     } catch (err) {
       if (err instanceof QlooError && err.status !== 429 && err.status < 500) throw err;
       lastError = err;
     }
-    if (attempt < MAX_RETRIES) await sleep(800 * 2 ** attempt);
+    if (attempt < MAX_RETRIES) {
+      // exponential backoff with jitter, so parallel retries don't all land together
+      await sleep(Math.max(retryAfterMs, 1000 * 2 ** attempt * (0.75 + Math.random() * 0.5)));
+    }
   }
   throw lastError;
 }
