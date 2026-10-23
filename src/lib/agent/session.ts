@@ -44,11 +44,11 @@ export interface SubmittedPlan {
   brief_markdown: string;
 }
 
-/** Thrown for bad tool input; the message goes back to Claude so it can correct itself. */
-export class ToolInputError extends Error {}
+import { FatalToolError, ToolInputError } from "./loop";
+export { ToolInputError };
 
 /** The artist isn't in Qloo: nothing to plan, so the run stops and the user is told. */
-export class ArtistNotFoundError extends Error {}
+export class ArtistNotFoundError extends FatalToolError {}
 
 const k = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : `${Math.round(n / 1e3)}k`);
 

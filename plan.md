@@ -317,3 +317,9 @@ Known gaps for later: venue lists in some countries (Brazil, Nigeria) are mostly
   - Burna Boy, UK arena, "finish in London, include Scotland if supported": Glasgow in, Edinburgh out with reasons; 5 of 6 agree with the generic answer (honest: superstar → big cities).
   - Zach Bryan, US club, "small rooms, end in Oklahoma": ends at Cain's Ballroom, Tulsa; Samantha Crain as confirmed-local opener; 6 of 7 cities not in the generic answer.
 - Fixes from testing: strict-schema enum with null rejected (use "auto"), cluster names come from the town nearest the strongest fan area (Northampton, not "North Chicopee"), GeoNames sub-area names filtered, `plan_route` takes `end_city`, brand ideas guaranteed in the brief, arena/theatre tours get a size-specific venue search (London → The O2).
+
+### Day 4 (Oct 23): venue mode 🟡 (engine done; venue agent not yet)
+- `src/lib/engine/venue.ts` + `venuePlan.ts`: venue lookup (typos, word order, "Venue City" without comma, city-only fallback), acts this venue's fans love sized to capacity, local acts (vs. two other big cities), double bills (smaller/local support, shared taste), crowd, brands.
+- `npm run venue -- "First Avenue, Minneapolis" --capacity=1550 --genres="indie"`. Tested: First Avenue, The Iron Horse, Cain's Ballroom, O2 Academy Brixton, Lagos.
+- Agent loop moved to `src/lib/agent/loop.ts` (shared by both modes); artist agent refactored onto it (type-checks; needs one live re-run).
+- Left: venue agent session + tools + prompt, venue LLM-only comparison, `/api/plan` venue mode, live tests.

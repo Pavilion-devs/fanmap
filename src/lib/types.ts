@@ -195,14 +195,22 @@ export interface VenuePlanInput {
   mode: "venue";
   /** venue name and/or city, e.g. "First Avenue, Minneapolis" */
   venue: string;
+  /** genres the venue books, e.g. ["indie", "folk"] (optional) */
   genres?: string[];
+  /** room capacity; sets the size of acts to suggest */
   capacity?: number;
+  /** free-text wishes, e.g. "we want more hip hop nights" */
+  notes?: string;
 }
 
 export interface BookingPick {
   artist: ArtistRef;
-  /** 0..100 */
+  /** 0..100: how much this venue's fans like the artist */
   fit: number;
+  /** the artist is also unusually popular around the venue */
+  localDraw: boolean;
+  /** the artist's profile names the venue's city or region */
+  confirmedLocal: boolean;
   reason: string;
 }
 
@@ -217,15 +225,19 @@ export interface DoubleBill {
 export interface VenuePlan {
   mode: "venue";
   input: VenuePlanInput;
-  venue: { name: string; place: Place; qlooId?: string };
+  venue: { name: string; place: Place; qlooId?: string; category?: string; address?: string; image?: string };
+  /** the act size the plan targets, e.g. "mid-size (600–2,500)" */
+  sizeBand: string;
   crowd?: Audience;
   picks: BookingPick[];
-  localOpeners: ArtistRef[];
+  localOpeners: LocalOpener[];
   doubleBills: DoubleBill[];
   brands: BrandMatch[];
+  headline?: string;
   comparison?: Comparison;
   brief?: Brief;
   notices: Notice[];
+  run?: RunInfo;
   generatedAt: string;
 }
 

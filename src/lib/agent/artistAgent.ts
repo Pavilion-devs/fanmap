@@ -5,17 +5,12 @@
  * geography, follows the user's wishes, picks openers and partners, and writes the brief.
  * Every tool call is streamed to the UI as a progress step; the agent's own notes as "thought".
  */
-import type Anthropic from "@anthropic-ai/sdk";
-import type { ArtistPlan, ArtistPlanInput, PlanEvent, RunInfo } from "@/lib/types";
-import { BETAS, MODEL, claude } from "./claude";
-import { ArtistNotFoundError, ArtistSession, ToolInputError } from "./session";
+import type { ArtistPlan, ArtistPlanInput, PlanEvent } from "@/lib/types";
+import { runAgentLoop } from "./loop";
+import { ArtistSession } from "./session";
 import { ARTIST_TOOLS, runTool, toolLabel } from "./tools";
 
 type Emit = (event: PlanEvent) => void;
-type MessageParam = Anthropic.Beta.BetaMessageParam;
-type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
-
-const MAX_TURNS = 12;
 
 const SYSTEM = `You are Fanmap's tour-planning agent. You help independent artists, managers, booking agents and small promoters decide where to tour, using Qloo's taste data: where an artist's fans are actually concentrated, which venues and local acts those fans like, and which brands they love.
 
@@ -54,91 +49,27 @@ function userMessage(input: ArtistPlanInput) {
   return lines.filter(Boolean).join("\n");
 }
 
-/** Short text for the tool_result content sent back to Claude. */
-const asContent = (value: unknown) => JSON.stringify(value);
-
 export async function runArtistAgent(input: ArtistPlanInput, emit: Emit): Promise<ArtistPlan> {
   const started = Date.now();
   const session = new ArtistSession(input, emit);
-  const toolCalls: RunInfo["toolCalls"] = [];
-  const messages: MessageParam[] = [{ role: "user", content: userMessage(input) }];
-  let turns = 0;
-  let stepCounter = 0;
 
-  for (; turns < MAX_TURNS; ) {
-    const response = await claude().beta.messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      betas: BETAS,
-      fallbacks: "default",
-      thinking: { type: "adaptive", display: "updates" },
-      output_config: { effort: "medium" },
-      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+  const run = await runAgentLoop(
+    {
+      system: SYSTEM,
       tools: ARTIST_TOOLS,
-      messages,
-    });
-    turns++;
+      userMessage: userMessage(input),
+      runTool: (name, toolInput) => runTool(session, name, toolInput),
+      label: toolLabel,
+      detail: stepDetail,
+      isDone: () => !!session.submitted,
+      finishPrompt: "Please finish by calling plan_route if needed, then submit_plan.",
+    },
+    emit,
+  );
 
-    if (response.stop_reason === "refusal") throw new Error("The model declined this request.");
-
-    // the agent's notes: progress-update thinking blocks and any plain text
-    for (const block of response.content) {
-      const text = block.type === "thinking" ? block.thinking : block.type === "text" ? block.text : "";
-      if (text.trim()) emit({ type: "thought", text: text.trim() });
-    }
-
-    // append the assistant turn unchanged (thinking blocks must be passed back as-is)
-    messages.push({ role: "assistant", content: response.content });
-
-    const uses = response.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
-    if (!uses.length) {
-      if (session.submitted) break;
-      if (response.stop_reason === "max_tokens") throw new Error("The agent ran out of room before finishing.");
-      messages.push({ role: "user", content: "Please finish by calling plan_route if needed, then submit_plan." });
-      continue;
-    }
-    if (response.stop_reason === "max_tokens") throw new Error("A tool call was cut off (max_tokens).");
-
-    // run this turn's tool calls in parallel; all results go back in one message
-    const results = await Promise.all(
-      uses.map(async (use): Promise<ToolResult> => {
-        const toolInput = (use.input ?? {}) as Record<string, unknown>;
-        const id = `${use.name}-${++stepCounter}`;
-        const label = toolLabel(use.name, toolInput);
-        const t0 = Date.now();
-        emit({ type: "step", id, label, status: "running", tool: use.name });
-        try {
-          const output = await runTool(session, use.name, toolInput);
-          const ms = Date.now() - t0;
-          toolCalls.push({ tool: use.name, ms });
-          emit({ type: "step", id, label, status: "done", tool: use.name, ms, detail: stepDetail(use.name, output) });
-          return { type: "tool_result", tool_use_id: use.id, content: asContent(output) };
-        } catch (err) {
-          const ms = Date.now() - t0;
-          const message = err instanceof Error ? err.message : String(err);
-          emit({ type: "step", id, label, status: "failed", tool: use.name, ms, detail: message.slice(0, 200) });
-          if (err instanceof ArtistNotFoundError) throw err;
-          // input mistakes go back to the agent so it can fix them; data failures too, so it can work around them
-          return {
-            type: "tool_result",
-            tool_use_id: use.id,
-            is_error: true,
-            content: err instanceof ToolInputError ? message : `Tool failed: ${message.slice(0, 300)}`,
-          };
-        }
-      }),
-    );
-    messages.push({ role: "user", content: results });
-
-    // once the plan is submitted there is nothing left for the agent to do
-    if (session.submitted) break;
-  }
-
-  if (!session.submitted) throw new Error(`The agent didn't finish within ${MAX_TURNS} turns.`);
-
-  await session.ensureScouted(session.submitted.cities.map((c) => c.label));
+  await session.ensureScouted(session.submitted!.cities.map((c) => c.label));
   const plan = session.buildPlan();
-  plan.run = { engine: "agent", model: MODEL, toolCalls, turns, ms: Date.now() - started };
+  plan.run = { ...run, ms: Date.now() - started };
   return plan;
 }
 

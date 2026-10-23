@@ -12,7 +12,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "cities": "tsx --env-file=.env scripts/cities.ts",
     "plan": "tsx --env-file=.env scripts/plan.ts",
-    "agent": "tsx --env-file=.env scripts/agent.ts"
+    "agent": "tsx --env-file=.env scripts/agent.ts",
+    "venue": "tsx --env-file=.env scripts/venue.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.2.0",

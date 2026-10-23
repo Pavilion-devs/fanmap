@@ -32,6 +32,7 @@ export const normName = (s: string) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    .replace(/['’`]/g, "") // "Cain's" → "cains"
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
