@@ -5,9 +5,9 @@
 - **Artist mode: "Where should I tour?"** Fanmap maps where an artist's fans are concentrated, ranks tour cities, plans the route, and picks venues, local openers, support acts and brand partners. Claude writes a tour brief a promoter can use.
 - **Venue mode: "Who should I book?"** Fanmap finds the acts a specific venue's fans love, sized to the room, plus the local scene, double bills and sponsors, and writes a booking brief.
 
-Every plan is compared with what an AI says **without** Qloo data. Example: for a Phoebe Bridgers US tour, 6 of Fanmap's 8 cities (Northampton MA, Portland ME, Burlington VT…) don't appear in the generic answer (New York, LA, Chicago…).
+Every plan is compared with what an AI says **without** Qloo data. Example: for a Phoebe Bridgers US tour, 5 of Fanmap's 8 cities (Portland OR, Boston, Northampton MA, Denver, Madison) don't appear in the generic answer (Los Angeles, New York, Nashville, Austin, Philadelphia…). For First Avenue in Minneapolis, 10 of 10 booking picks differ.
 
-Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/). Live at [fanmap.xyz](https://fanmap.xyz).
+Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/). Live at [fanmap.xyz](https://www.fanmap.xyz): no login, six saved examples replay in seconds, and any artist, country or venue runs live in about a minute.
 
 ## How it works
 
