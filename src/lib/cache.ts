@@ -79,6 +79,7 @@ class UpstashStore implements CacheStore {
   constructor(
     private url: string,
     private token: string,
+    private timeoutMs = 5000,
   ) {}
 
   async command(args: (string | number)[]) {
@@ -86,7 +87,7 @@ class UpstashStore implements CacheStore {
       method: "POST",
       headers: { Authorization: `Bearer ${this.token}` },
       body: JSON.stringify(args),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok) throw new Error(`Upstash ${res.status}`);
     return ((await res.json()) as { result: unknown }).result;
@@ -137,10 +138,13 @@ function upstashEnv() {
   return url && token ? { url, token } : undefined;
 }
 
-/** The shared Redis store on its own, or undefined when it isn't configured (used by scripts). */
-export function remoteStore(): CacheStore | undefined {
+/**
+ * The shared Redis store on its own, or undefined when it isn't configured (used by scripts).
+ * Scripts run far from the database, so they can allow a longer timeout than the app does.
+ */
+export function remoteStore(timeoutMs?: number): CacheStore | undefined {
   const env = upstashEnv();
-  return env ? new UpstashStore(env.url, env.token) : undefined;
+  return env ? new UpstashStore(env.url, env.token, timeoutMs) : undefined;
 }
 
 function createStore(): CacheStore {
