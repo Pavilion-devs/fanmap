@@ -172,12 +172,9 @@
   transform: translateY(-2px);
 }
 
-.play {
-  width: 0;
-  height: 0;
-  border-left: 7px solid var(--amber);
-  border-top: 4.5px solid transparent;
-  border-bottom: 4.5px solid transparent;
+.secondaryNote {
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .meta {

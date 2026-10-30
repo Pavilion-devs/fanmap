@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import type { Basemap } from "@/lib/geo/basemap";
+import { isActiveAct } from "@/lib/engine/util";
 import { EXAMPLES } from "@/lib/examples";
 import type { ArtistPlan, ArtistRef, Audience, BookingPick, BrandMatch, Comparison, DoubleBill, FanArea, LocalOpener, PlanInput, RouteStop, TourCity, VenuePlan } from "@/lib/types";
 import { Logo } from "@/components/landing/Nav";
@@ -53,16 +54,14 @@ export default function PlanView({ input, basemap, regionName, sharePath }: Prop
     input.mode === "artist"
       ? ((stream.partial.artist as ArtistRef | undefined)?.name ?? input.artist)
       : ((stream.partial.venue as VenuePlan["venue"] | undefined)?.name ?? input.venue.split(",")[0]);
-  const pageTitle = `${name} · ${input.mode === "artist" ? `${regionName} tour plan` : "booking plan"} · Fanmap`;
 
   return (
     <div className={styles.page}>
-      <title>{pageTitle}</title>
 
       <header className={styles.bar} data-noprint>
         <Logo />
         <p className={styles.crumb}>
-          <Link href="/#plan">{input.mode === "artist" ? "Tour plan" : "Booking plan"}</Link>
+          <Link href={input.mode === "venue" ? "/plan?mode=venue" : "/plan"}>{input.mode === "artist" ? "Tour plan" : "Booking plan"}</Link>
           <span aria-hidden="true">/</span>
           <span>{name}</span>
         </p>
@@ -83,7 +82,7 @@ export default function PlanView({ input, basemap, regionName, sharePath }: Prop
             </>
           )}
           {!running && !done && (
-            <Link href="/#plan" className={styles.ghostBtn}>
+            <Link href={input.mode === "venue" ? "/plan?mode=venue" : "/plan"} className={styles.ghostBtn}>
               New plan
             </Link>
           )}
@@ -101,7 +100,7 @@ export default function PlanView({ input, basemap, regionName, sharePath }: Prop
       <footer className={styles.foot} data-noprint>
         <Logo />
         <p>Fan scores show where taste is concentrated, not guaranteed ticket sales.</p>
-        <Link href="/#plan" className={styles.ghostBtn}>
+        <Link href={input.mode === "venue" ? "/plan?mode=venue" : "/plan"} className={styles.ghostBtn}>
           Plan another
         </Link>
       </footer>
@@ -142,7 +141,7 @@ function ArtistView({
   const fanMap = plan?.fanMap ?? (p.fanMap as FanArea[] | undefined);
   const route = plan?.route ?? (p.route as RouteStop[] | undefined);
   const audience = plan?.audience ?? (p.audience as Audience | undefined);
-  const openers = plan?.openers ?? (p.openers as ArtistPlan["openers"] | undefined);
+  const openers = (plan?.openers ?? (p.openers as ArtistPlan["openers"] | undefined))?.filter(isActiveAct);
   const brands = plan?.brands ?? (p.brands as BrandMatch[] | undefined) ?? [];
   const comparison = plan?.comparison ?? (p.comparison as Comparison | undefined);
 
@@ -208,7 +207,7 @@ function ArtistView({
       {stream.status === "error" || stream.status === "cancelled" ? (
         <Problem error={stream.error} cancelled={stream.status === "cancelled"} onRetry={stream.retry} mode="artist" sharePath={sharePath} />
       ) : (
-        <div className={styles.stage} data-done={plan ? "1" : "0"}>
+        <div className={styles.stage} data-done={plan ? "1" : "0"} data-noprint>
           <div className={styles.left}>
             <AgentLog log={stream.log} running={stream.status === "running"} elapsed={elapsed} run={plan?.run} onCancel={stream.cancel} />
             {plan && nights.length > 0 && (
@@ -242,7 +241,7 @@ function ArtistView({
         <div className={styles.after}>
           {comparison && <Compare comparison={comparison} unit="cities" />}
           {(audience || openers?.length || brands.length > 0) && (
-            <section className={styles.wide} aria-labelledby="insights-title">
+            <section className={styles.wide} aria-labelledby="insights-title" data-noprint>
               <SectionHead id="insights-title" kicker="Around the shows" title="The crowd, the support, the sponsors" />
               <Insights audience={audience} acts={openers} actsTitle="Support acts" actsNote="Share the same fans" brands={brands} />
             </section>
@@ -260,9 +259,10 @@ function VenueView({ stream, input, elapsed, status, sharePath }: { stream: Stre
   const plan = stream.plan?.mode === "venue" ? stream.plan : undefined;
   const p = stream.partial;
   const venue = plan?.venue ?? (p.venue as VenuePlan["venue"] | undefined);
-  const picks = plan?.picks ?? (p.picks as BookingPick[] | undefined);
-  const locals = plan?.localOpeners ?? (p.localOpeners as LocalOpener[] | undefined);
-  const bills = plan?.doubleBills ?? (p.doubleBills as DoubleBill[] | undefined);
+  // plans saved before late artists were filtered out still list them, so drop them here too
+  const picks = (plan?.picks ?? (p.picks as BookingPick[] | undefined))?.filter((x) => isActiveAct(x.artist));
+  const locals = (plan?.localOpeners ?? (p.localOpeners as LocalOpener[] | undefined))?.filter(isActiveAct);
+  const bills = (plan?.doubleBills ?? (p.doubleBills as DoubleBill[] | undefined))?.filter((b) => isActiveAct(b.headliner) && isActiveAct(b.support));
   const crowd = plan?.crowd ?? (p.crowd as Audience | undefined);
   const brands = plan?.brands ?? (p.brands as BrandMatch[] | undefined) ?? [];
   const comparison = plan?.comparison ?? (p.comparison as Comparison | undefined);
@@ -295,9 +295,9 @@ function VenueView({ stream, input, elapsed, status, sharePath }: { stream: Stre
         }
         stats={
           plan && [
-            ["Acts matched", String(plan.picks.length)],
-            ["Local acts", String(plan.picks.filter((x) => x.confirmedLocal).length + plan.localOpeners.length)],
-            ["Double bills", String(plan.doubleBills.length)],
+            ["Acts matched", String(picks?.length ?? 0)],
+            ["Local acts", String((picks?.filter((x) => x.confirmedLocal).length ?? 0) + (locals?.length ?? 0))],
+            ["Double bills", String(bills?.length ?? 0)],
             ["Act size", plan.sizeBand.replace(/\s*\(.*\)/, "").replace(/^\w/, (c) => c.toUpperCase())],
           ]
         }
@@ -307,7 +307,7 @@ function VenueView({ stream, input, elapsed, status, sharePath }: { stream: Stre
       {stream.status === "error" || stream.status === "cancelled" ? (
         <Problem error={stream.error} cancelled={stream.status === "cancelled"} onRetry={stream.retry} mode="venue" sharePath={sharePath} />
       ) : (
-        <div className={styles.stage} data-done={plan ? "1" : "0"}>
+        <div className={styles.stage} data-done={plan ? "1" : "0"} data-noprint>
           <div className={styles.left}>
             <AgentLog log={stream.log} running={stream.status === "running"} elapsed={elapsed} run={plan?.run} onCancel={stream.cancel} />
             {plan && locals && locals.length > 0 && (
@@ -333,7 +333,7 @@ function VenueView({ stream, input, elapsed, status, sharePath }: { stream: Stre
         <div className={styles.after}>
           {comparison && <Compare comparison={comparison} unit="acts" />}
           {(crowd || brands.length > 0) && (
-            <section className={styles.wide} aria-labelledby="insights-title">
+            <section className={styles.wide} aria-labelledby="insights-title" data-noprint>
               <SectionHead id="insights-title" kicker="The room" title="Who comes, and who'd sponsor them" />
               <Insights audience={crowd} actsTitle="" actsNote="" brands={brands} />
             </section>
@@ -445,7 +445,7 @@ function Problem({ error, cancelled, onRetry, mode, sharePath }: { error?: Strea
   const examples = EXAMPLES.filter((x) => x.input.mode === mode && sharePath !== `/plan?example=${x.id}`).slice(0, 3);
   const canRetry = cancelled || (error && error.kind !== "not_found" && error.kind !== "input");
   return (
-    <section className={styles.problem} role="alert">
+    <section className={styles.problem} role="alert" data-noprint>
       <p className={styles.kicker}>
         <span className={styles.kickerDot} data-tone="warn" /> {cancelled ? "Stopped" : "No plan this time"}
       </p>
@@ -457,7 +457,7 @@ function Problem({ error, cancelled, onRetry, mode, sharePath }: { error?: Strea
             {cancelled ? "Start again" : "Try again"}
           </button>
         )}
-        <Link href="/#plan" className={styles.ghostBtn}>
+        <Link href={mode === "venue" ? "/plan?mode=venue" : "/plan"} className={styles.ghostBtn}>
           Change the request
         </Link>
       </div>

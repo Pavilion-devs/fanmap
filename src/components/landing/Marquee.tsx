@@ -5,8 +5,8 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import styles from "./Marquee.module.css";
 
-const FACTS = ["~7,000 fan areas read", "Top 0.1% Northampton", "5 of 8 cities AI misses", "Routed in about a minute"];
-const CITIES = ["Northampton", "Burlington", "Ithaca", "Portland, ME", "Portland, OR", "Bellingham", "Asheville", "Missoula"];
+const FACTS = ["8,576 fan areas read", "Top 0.1% Northampton", "5 of 8 cities AI misses", "Routed in about a minute"];
+const CITIES = ["Portland, OR", "Northampton", "Portland, ME", "Burlington", "Madison", "Worcester", "Minneapolis", "Boston"];
 
 function Row({ items, outline }: { items: string[]; outline?: boolean }) {
   // Two identical halves so the loop can wrap at -50% without a seam.

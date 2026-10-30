@@ -32,9 +32,9 @@ export default function Nav() {
           </a>
         ))}
       </nav>
-      <a href="#plan" className={styles.cta}>
+      <Link href="/plan" className={styles.cta}>
         Plan a tour
-      </a>
+      </Link>
     </header>
   );
 }

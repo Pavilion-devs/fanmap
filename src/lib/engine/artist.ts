@@ -3,7 +3,7 @@
  */
 import { demographics, insightsEntities, searchEntities, type QlooEntity } from "@/lib/qloo/api";
 import type { ArtistRef, Audience, BrandMatch, Notice } from "@/lib/types";
-import { dedupeEntities, genreNames, isGenreTag, normName, round, toArtistRef } from "./util";
+import { dedupeEntities, genreNames, isActiveAct, isGenreTag, normName, round, toArtistRef } from "./util";
 
 export interface ResolvedArtist {
   entity: QlooEntity;
@@ -144,7 +144,7 @@ export async function getAudience(signalIds: string[], traits: string[]): Promis
 export async function findOpeners(artist: ResolvedArtist, take = 8) {
   const similar = await insightsEntities("urn:entity:artist", { "signal.interests.entities": artist.entity.id }, 30);
   const head = artist.entity;
-  const candidates = dedupeEntities(similar.filter((s) => s.id !== head.id && !normName(s.name).includes(normName(head.name))));
+  const candidates = dedupeEntities(similar.filter((s) => s.id !== head.id && isActiveAct(s) && !normName(s.name).includes(normName(head.name))));
 
   const isSmaller = (s: QlooEntity) =>
     head.listeners && s.listeners ? s.listeners < head.listeners * 0.8 : s.popularity < head.popularity;

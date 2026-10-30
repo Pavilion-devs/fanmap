@@ -11,7 +11,7 @@ const fresh = args.includes("--fresh");
 const filter = args.find((a) => !a.startsWith("--"));
 
 (async () => {
-  const target = process.env.UPSTASH_REDIS_REST_URL ? "Upstash (shared)" : "local .cache";
+  const target = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL ? "Upstash (shared)" : "local .cache";
   console.log(`Warming ${filter ? `examples matching "${filter}"` : "all examples"} into ${target}\n`);
   let total = 0;
   for (const ex of EXAMPLES.filter((e) => !filter || e.id.includes(filter))) {

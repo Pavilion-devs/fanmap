@@ -6,7 +6,7 @@ import { rankCities } from "@/lib/engine/cities";
 import { planRoute } from "@/lib/engine/route";
 import { ageSummary, plausibleMatch } from "@/lib/engine/artist";
 import { fromCountryOf, isMusicAct, localCutoffs, sizeBand, splitQuery } from "@/lib/engine/venue";
-import { dedupeEntities } from "@/lib/engine/util";
+import { dedupeEntities, isActiveAct } from "@/lib/engine/util";
 import { buildBookingComparison, buildComparison } from "@/lib/agent/compare";
 import { ensureBrandsInBrief } from "@/lib/agent/brief";
 import { validateArtistInput, validateVenueInput, PlanInputError } from "@/lib/plan";
@@ -262,5 +262,15 @@ describe("input validation and cache keys", () => {
     const b = planKey({ shows: 7, region: "united states", artist: "zach bryan", mode: "artist" });
     expect(a).toBe(b);
     expect(planKey({ mode: "artist", artist: "Zach Bryan", shows: 8 })).not.toBe(a);
+  });
+});
+
+describe("active acts", () => {
+  it("drops acts described in the past tense", () => {
+    expect(isActiveAct({ description: "Test Rapper, born Jo Bloggs, was an American rapper from Ohio. He was known for x." })).toBe(false);
+    expect(isActiveAct({ description: "The Testers were a Scottish indie rock band formed in 2003." })).toBe(false);
+    expect(isActiveAct({ description: "Test Singer is an American singer. She was a member of a band until 2010." })).toBe(true);
+    expect(isActiveAct({ description: "Test Band is a group that was formed in Leeds." })).toBe(true);
+    expect(isActiveAct({})).toBe(true);
   });
 });

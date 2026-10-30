@@ -4,7 +4,8 @@
  *
  * Layers, fastest first:
  *   1. in-memory (per server instance)
- *   2. persistent: Upstash Redis (if UPSTASH_REDIS_REST_URL/TOKEN are set, used in production)
+ *   2. persistent: Upstash Redis (if UPSTASH_REDIS_REST_URL/TOKEN, or the KV_REST_API_URL/TOKEN names
+ *      that Vercel's Upstash integration sets, are present; used in production)
  *      or a local file cache in ./.cache (development / scripts)
  */
 import { createHash } from "node:crypto";
@@ -129,10 +130,23 @@ class LayeredStore implements CacheStore {
   }
 }
 
+/** Upstash credentials under either naming (our own, or what Vercel's Upstash integration injects). */
+function upstashEnv() {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  return url && token ? { url, token } : undefined;
+}
+
+/** The shared Redis store on its own, or undefined when it isn't configured (used by scripts). */
+export function remoteStore(): CacheStore | undefined {
+  const env = upstashEnv();
+  return env ? new UpstashStore(env.url, env.token) : undefined;
+}
+
 function createStore(): CacheStore {
   const memory = new MemoryStore();
-  const { UPSTASH_REDIS_REST_URL: url, UPSTASH_REDIS_REST_TOKEN: token } = process.env;
-  if (url && token) return new LayeredStore([memory, new UpstashStore(url, token)]);
+  const env = upstashEnv();
+  if (env) return new LayeredStore([memory, new UpstashStore(env.url, env.token)]);
   if (!process.env.VERCEL) {
     return new LayeredStore([memory, new FileStore(path.join(process.cwd(), ".cache"))]);
   }
@@ -143,10 +157,10 @@ export const cache: CacheStore = createStore();
 
 // ---------- counters (rate limits, budgets) ----------
 
-const upstash =
-  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-    ? new UpstashStore(process.env.UPSTASH_REDIS_REST_URL, process.env.UPSTASH_REDIS_REST_TOKEN)
-    : undefined;
+const upstash = (() => {
+  const env = upstashEnv();
+  return env ? new UpstashStore(env.url, env.token) : undefined;
+})();
 const memoryCounters = new Map<string, { count: number; resetAt: number }>();
 
 /**

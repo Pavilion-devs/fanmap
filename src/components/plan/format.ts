@@ -1,3 +1,4 @@
+import { isActiveAct } from "@/lib/engine/util";
 import type { ArtistPlan, TourCity, VenuePlan } from "@/lib/types";
 
 const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
@@ -77,9 +78,14 @@ export function nightsOf(plan: ArtistPlan): Night[] {
 
 /** Venue mode: the brief's shortlist with slots, or the top picks. */
 export function shortlistOf(plan: VenuePlan) {
-  const table = briefTable(plan.brief?.markdown, /book/i);
+  // leave out acts that can't be booked any more (see isActiveAct)
+  const gone = new Set(plan.picks.filter((p) => !isActiveAct(p.artist)).map((p) => p.artist.name));
+  const table = briefTable(plan.brief?.markdown, /book/i).filter((r) => !gone.has(r[0]));
   if (table.length >= 3) return table.map((r) => ({ act: r[0], slot: r[2] ?? "" })).slice(0, 10);
-  return plan.picks.slice(0, 10).map((p) => ({ act: p.artist.name, slot: p.confirmedLocal ? "Local" : "" }));
+  return plan.picks
+    .filter((p) => !gone.has(p.artist.name))
+    .slice(0, 10)
+    .map((p) => ({ act: p.artist.name, slot: p.confirmedLocal ? "Local" : "" }));
 }
 
 export const tierLabel = (tier?: string) => (tier === "club" ? "Club" : tier === "theatre" ? "Theatre" : tier === "arena" ? "Arena" : "Room");

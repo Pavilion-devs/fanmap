@@ -54,7 +54,7 @@ const VENUES: Venue[] = [
     crowd: "Under 25 and 45–54, leans female",
     picks: [
       { name: "Turnpike Troubadours", genre: "Red dirt · Americana", fit: 93, local: true, draws: true },
-      { name: "Cross Canadian Ragweed", genre: "Alt country", fit: 94, local: true },
+      { name: "Jason Boland & The Stragglers", genre: "Red dirt", fit: 93, local: true, draws: true },
       { name: "Cody Johnson", genre: "Country", fit: 95 },
       { name: "Wade Bowen", genre: "Red dirt", fit: 95 },
       { name: "Chris Stapleton", genre: "Americana", fit: 92, draws: true },

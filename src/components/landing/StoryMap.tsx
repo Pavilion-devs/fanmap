@@ -61,14 +61,14 @@ const RANKED: { lat: number; lon: number; label: string; rank?: string; side: Si
   { ...HOTSPOTS[2], label: "Burlington, VT", rank: "Top 0.1%", side: "above" },
   { ...HOTSPOTS[1], label: "Portland, OR", side: "right" },
   { ...HOTSPOTS[3], label: "Portland, ME", side: "right", minor: true },
-  { ...HOTSPOTS[4], label: "Ithaca, NY", side: "left", minor: true },
+  { ...HOTSPOTS[4], label: "Madison, WI", side: "below", minor: true },
 ];
 
 const VENUES: { name: string; lat: number; lon: number; side: Side }[] = [
   { name: "Wonder Ballroom", lat: 45.52, lon: -122.68, side: "right" },
-  { name: "The Independent", lat: 37.77, lon: -122.42, side: "right" },
-  { name: "The Iron Horse", lat: 42.32, lon: -72.63, side: "left" },
-  { name: "SPACE Gallery", lat: 43.66, lon: -70.26, side: "above" },
+  { name: "Great American Music Hall", lat: 37.77, lon: -122.42, side: "right" },
+  { name: "High Noon Saloon", lat: 43.07, lon: -89.4, side: "above" },
+  { name: "John M. Greene Hall", lat: 42.32, lon: -72.63, side: "left" },
   { name: "The Sinclair", lat: 42.36, lon: -71.06, side: "below" },
 ];
 
@@ -163,7 +163,7 @@ export default function StoryMap({ step }: { step: number }) {
       </div>
 
       <div className={styles.areas} data-on={step >= 1 ? "1" : "0"}>
-        <b>~7,000</b> areas scored
+        <b>8,576</b> areas scored
       </div>
 
       {RANKED.map((r, i) => (

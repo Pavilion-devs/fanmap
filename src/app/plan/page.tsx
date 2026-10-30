@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import PlanStart from "@/components/plan/PlanStart";
 import PlanView from "@/components/plan/PlanView";
 import { EXAMPLES } from "@/lib/examples";
 import { countryBasemap } from "@/lib/geo/basemap";
@@ -9,14 +10,28 @@ import { validateArtistInput, validateVenueInput } from "@/lib/plan";
 import type { PlanInput } from "@/lib/types";
 import styles from "./page.module.css";
 
-export const metadata: Metadata = {
-  title: "Your plan · Fanmap",
-  description: "A tour or booking plan built from where the fans actually are.",
-};
-
 type Query = Record<string, string | string[] | undefined>;
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim() || undefined;
+
+/** No artist, venue or example in the URL: show the form instead of starting a run. */
+const isStart = (q: Query) => !one(q.example) && !one(q.artist) && !one(q.venue);
+
+export async function generateMetadata({ searchParams }: PageProps<"/plan">): Promise<Metadata> {
+  const q = await searchParams;
+  const description = "A tour or booking plan built from where the fans actually are.";
+  if (isStart(q)) return { title: one(q.mode) === "venue" ? "Book a room · Fanmap" : "Plan a tour · Fanmap", description };
+  try {
+    const input = readInput(q);
+    const title =
+      input.mode === "artist"
+        ? `${input.artist} · ${input.region ?? "United States"} tour plan · Fanmap`
+        : `${input.venue.split(",")[0]} · booking plan · Fanmap`;
+    return { title, description };
+  } catch {
+    return { title: "Your plan · Fanmap", description };
+  }
+}
 
 /** The plan request from the URL: a saved example by id, or the fields from the form. */
 function readInput(q: Query): PlanInput {
@@ -40,6 +55,7 @@ function sharePath(q: Query, input: PlanInput) {
 
 async function Plan({ searchParams }: { searchParams: Promise<Query> }) {
   const q = await searchParams;
+  if (isStart(q)) return <PlanStart defaultMode={one(q.mode) === "venue" ? "venue" : "artist"} />;
   let input: PlanInput;
   try {
     input = readInput(q);
@@ -48,7 +64,7 @@ async function Plan({ searchParams }: { searchParams: Promise<Query> }) {
       <div className={styles.invalid}>
         <p className={styles.kicker}>No plan yet</p>
         <h1>{err instanceof Error ? err.message : "That request didn't make sense."}</h1>
-        <Link href="/#plan">Start a plan</Link>
+        <Link href="/plan">Start a plan</Link>
       </div>
     );
   }

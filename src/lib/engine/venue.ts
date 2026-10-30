@@ -9,7 +9,7 @@ import { compare, insightsEntities, point, searchEntities, searchTags, type Qloo
 import { CITIES, cityLabel, distanceKm, findCity, findCountry, citiesNear, type City } from "@/lib/geo/cities";
 import type { Audience, BookingPick, BrandMatch, DoubleBill, LocalOpener, Place } from "@/lib/types";
 import { getAudience } from "./artist";
-import { dedupeEntities, genreNames, mapSettled, normName, round, toArtistRef } from "./util";
+import { dedupeEntities, genreNames, isActiveAct, mapSettled, normName, round, toArtistRef } from "./util";
 
 // ---------- the venue ----------
 
@@ -266,7 +266,7 @@ export async function findBookingPicks(
   const [relLo, relHi] = localCutoffs(scene.map((e) => e.popularity), options.band.rel);
   const lo = Math.min(options.band.min, relLo);
   const hi = Math.min(options.band.max, relHi);
-  const sceneFit = scene.filter((e) => e.popularity >= lo && e.popularity <= hi && isMusicAct(e, tagIds));
+  const sceneFit = scene.filter((e) => e.popularity >= lo && e.popularity <= hi && isMusicAct(e, tagIds) && isActiveAct(e));
   const sceneIds = new Set(scene.map((e) => e.id));
 
   // "local draw": shows up when we weight toward the venue's area, but not on taste alone
@@ -274,7 +274,7 @@ export async function findBookingPicks(
   const localIds = new Set([...local.filter((e) => !tasteIds.has(e.id)), ...scene].map((e) => e.id));
   const exclude = new Set(options.excludeIds ?? []);
   const pool = dedupeEntities([...taste, ...local, ...sceneFit]).filter(
-    (e) => !exclude.has(e.id) && e.popularity <= hi && isMusicAct(e, tagIds),
+    (e) => !exclude.has(e.id) && e.popularity <= hi && isMusicAct(e, tagIds) && isActiveAct(e),
   );
 
   const country = findCountry(venue.city.country);
@@ -348,7 +348,7 @@ export async function findLocalActs(
   const elsewhereIds = new Set(elsewhere.flat().map((e) => e.id));
   const exclude = new Set(options.excludeIds ?? []);
 
-  const candidates = dedupeEntities(here).filter((e) => !exclude.has(e.id) && !elsewhereIds.has(e.id));
+  const candidates = dedupeEntities(here).filter((e) => !exclude.has(e.id) && !elsewhereIds.has(e.id) && isActiveAct(e));
   const fit = await fitToSignal(venueSignal(venue, tagIds), candidates.map((e) => e.id));
 
   return candidates

@@ -12,7 +12,7 @@ const STEPS = [
   },
   {
     title: "Read the country's taste",
-    body: "Qloo scores about 7,000 small areas for how strongly they lean toward this artist. Not streams, not population. Taste.",
+    body: "Qloo scores about 8,500 small areas for how strongly they lean toward this artist. Not streams, not population. Taste.",
     tag: "Qloo · insights heatmap",
   },
   {

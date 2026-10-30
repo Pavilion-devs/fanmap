@@ -16,7 +16,8 @@
     "venue": "tsx --env-file=.env scripts/venue.ts",
     "venue-agent": "tsx --env-file=.env scripts/venue-agent.ts",
     "warm": "tsx --env-file=.env scripts/warm.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "upload-plans": "tsx --env-file=.env scripts/upload-plans.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.2.0",

@@ -7,7 +7,7 @@
  */
 import { insightsEntities, point, type QlooEntity } from "@/lib/qloo/api";
 import type { LocalOpener } from "@/lib/types";
-import { dedupeEntities, genreNames, mapSettled, normName, round, toArtistRef } from "./util";
+import { dedupeEntities, genreNames, isActiveAct, mapSettled, normName, round, toArtistRef } from "./util";
 
 export interface LocalCity {
   key: string;
@@ -116,6 +116,7 @@ export async function findLocalOpeners(
     const eligible = pool.list.filter(
       (e) =>
         !exclude.has(e.id) &&
+        isActiveAct(e) &&
         (seenIn.get(e.id) ?? 0) < ubiquityLimit &&
         !normName(e.name).includes(headName) &&
         e.popularity < head.popularity,

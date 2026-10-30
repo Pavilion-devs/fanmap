@@ -1,5 +1,5 @@
-// Showcase data for the landing-page map: Phoebe Bridgers in the US, shaped after
-// our early runs. Heat values are an illustrative index, not raw Qloo output.
+// Showcase data for the landing-page map: Phoebe Bridgers in the US, from the example run
+// (city ranks as Fanmap reports them). Heat values are an illustrative index, not raw Qloo output.
 
 export type LonLat = [lon: number, lat: number];
 
@@ -29,42 +29,42 @@ export const LAKES: [number, number, number, number][] = [
 export type Hotspot = { name: string; lat: number; lon: number; heat: number; rank?: string };
 
 export const HOTSPOTS: Hotspot[] = [
+  // the first five are referenced by position in StoryMap and FanMap3D
   { name: "Northampton, MA", lat: 42.32, lon: -72.63, heat: 1.0, rank: "Top 0.1%" },
-  { name: "Portland, OR", lat: 45.52, lon: -122.68, heat: 0.95 },
-  { name: "Burlington, VT", lat: 44.48, lon: -73.21, heat: 0.92, rank: "Top 0.1%" },
-  { name: "Portland, ME", lat: 43.66, lon: -70.26, heat: 0.86 },
-  { name: "Ithaca, NY", lat: 42.44, lon: -76.5, heat: 0.72 },
-  { name: "Seattle, WA", lat: 47.61, lon: -122.33, heat: 0.7 },
-  { name: "Boston, MA", lat: 42.36, lon: -71.06, heat: 0.62 },
-  { name: "San Francisco, CA", lat: 37.77, lon: -122.42, heat: 0.6 },
-  { name: "Bellingham, WA", lat: 48.75, lon: -122.48, heat: 0.55 },
-  { name: "Madison, WI", lat: 43.07, lon: -89.4, heat: 0.5 },
-  { name: "Minneapolis, MN", lat: 44.98, lon: -93.27, heat: 0.46 },
-  { name: "Olympia, WA", lat: 47.04, lon: -122.9, heat: 0.45 },
-  { name: "Providence, RI", lat: 41.82, lon: -71.41, heat: 0.45 },
-  { name: "Asheville, NC", lat: 35.6, lon: -82.55, heat: 0.42 },
-  { name: "Boulder, CO", lat: 40.01, lon: -105.27, heat: 0.4 },
-  { name: "Ann Arbor, MI", lat: 42.28, lon: -83.74, heat: 0.4 },
-  { name: "Missoula, MT", lat: 46.87, lon: -114.0, heat: 0.34 },
-  { name: "Athens, GA", lat: 33.95, lon: -83.38, heat: 0.34 },
+  { name: "Portland, OR", lat: 45.52, lon: -122.68, heat: 0.96, rank: "Top 0.1%" },
+  { name: "Burlington, VT", lat: 44.48, lon: -73.21, heat: 0.86, rank: "Top 0.1%" },
+  { name: "Portland, ME", lat: 43.66, lon: -70.26, heat: 0.92, rank: "Top 0.1%" },
+  { name: "Madison, WI", lat: 43.07, lon: -89.4, heat: 0.6, rank: "Top 0.3%" },
+  { name: "Boston, MA", lat: 42.36, lon: -71.06, heat: 0.84, rank: "Top 0.1%" },
+  { name: "Seattle, WA", lat: 47.61, lon: -122.33, heat: 0.74, rank: "Top 0.2%" },
+  { name: "San Francisco, CA", lat: 37.77, lon: -122.42, heat: 0.72, rank: "Top 0.3%" },
+  { name: "Minneapolis, MN", lat: 44.98, lon: -93.27, heat: 0.56, rank: "Top 0.4%" },
+  { name: "Worcester, MA", lat: 42.26, lon: -71.8, heat: 0.52, rank: "Top 0.3%" },
+  { name: "Austin, TX", lat: 30.27, lon: -97.74, heat: 0.46, rank: "Top 0.6%" },
+  { name: "Denver, CO", lat: 39.74, lon: -104.99, heat: 0.44, rank: "Top 2%" },
+  { name: "Chicago, IL", lat: 41.88, lon: -87.63, heat: 0.4, rank: "Top 2%" },
+  { name: "Los Angeles, CA", lat: 34.05, lon: -118.24, heat: 0.36, rank: "Top 2%" },
+  { name: "Philadelphia, PA", lat: 39.95, lon: -75.17, heat: 0.3, rank: "Top 3%" },
+  { name: "New York, NY", lat: 40.71, lon: -74.0, heat: 0.22, rank: "Top 3%" },
 ];
 
-/** Where a generic AI answer sends the same artist. */
+/** Where a generic AI answer sends the same artist (the picks the fan data doesn't back). */
 export const AI_PICKS: Hotspot[] = [
   { name: "New York", lat: 40.71, lon: -74.0, heat: 0 },
   { name: "Los Angeles", lat: 34.05, lon: -118.24, heat: 0 },
-  { name: "Chicago", lat: 41.88, lon: -87.63, heat: 0 },
-  { name: "Austin", lat: 30.27, lon: -97.74, heat: 0 },
   { name: "Nashville", lat: 36.16, lon: -86.78, heat: 0 },
+  { name: "Austin", lat: 30.27, lon: -97.74, heat: 0 },
+  { name: "Philadelphia", lat: 39.95, lon: -75.17, heat: 0 },
 ];
 
+/** The route from the example run: 8 nights from Seattle, skip New York, college towns welcome. */
 export const ROUTE: Hotspot[] = [
   { name: "Seattle", lat: 47.61, lon: -122.33, heat: 0 },
   { name: "Portland, OR", lat: 45.52, lon: -122.68, heat: 0 },
   { name: "San Francisco", lat: 37.77, lon: -122.42, heat: 0 },
-  { name: "Ithaca", lat: 42.44, lon: -76.5, heat: 0 },
+  { name: "Denver", lat: 39.74, lon: -104.99, heat: 0 },
+  { name: "Madison", lat: 43.07, lon: -89.4, heat: 0 },
+  { name: "Chicago", lat: 41.88, lon: -87.63, heat: 0 },
   { name: "Northampton", lat: 42.32, lon: -72.63, heat: 0 },
-  { name: "Burlington", lat: 44.48, lon: -73.21, heat: 0 },
-  { name: "Portland, ME", lat: 43.66, lon: -70.26, heat: 0 },
   { name: "Boston", lat: 42.36, lon: -71.06, heat: 0 },
 ];

@@ -11,7 +11,7 @@ export default function Compare({ comparison, unit }: { comparison: Comparison; 
   const total = fanmap.items.length;
 
   return (
-    <section className={styles.section} aria-labelledby="compare-title">
+    <section className={styles.section} aria-labelledby="compare-title" data-noprint>
       <div className={styles.score}>
         <p className={styles.label}>
           <span className={styles.labelDot} /> Blind spots

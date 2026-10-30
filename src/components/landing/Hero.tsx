@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import FanMap3D from "./FanMap3D";
@@ -59,16 +60,16 @@ export default function Hero() {
         </p>
 
         <div data-fade className={styles.actions}>
-          <a href="#plan" className={styles.primary}>
+          <Link href="/plan" className={styles.primary}>
             Plan a tour
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </a>
-          <a href="#brief" className={styles.secondary}>
-            <span className={styles.play} aria-hidden="true" />
-            See a real run
-          </a>
+          </Link>
+          <Link href="/plan?mode=venue" className={styles.secondary}>
+            Book a room
+            <span className={styles.secondaryNote}>for venues</span>
+          </Link>
         </div>
 
         <p data-fade className={styles.meta}>

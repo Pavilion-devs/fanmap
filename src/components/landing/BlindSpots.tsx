@@ -5,27 +5,27 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import styles from "./BlindSpots.module.css";
 
-// Phoebe Bridgers, eight US nights. The chatbot list is a typical generic answer.
+// Phoebe Bridgers, eight US nights: the example run and the chatbot answer it was compared with.
 const AI_LIST = [
-  { city: "New York", miss: true },
   { city: "Los Angeles", miss: true },
-  { city: "Chicago", miss: true },
-  { city: "Austin", miss: true },
+  { city: "New York", miss: true },
+  { city: "Chicago" },
   { city: "Nashville", miss: true },
-  { city: "Seattle" },
   { city: "San Francisco" },
-  { city: "Boston" },
+  { city: "Austin", miss: true },
+  { city: "Seattle" },
+  { city: "Philadelphia", miss: true },
 ];
 
 const FANMAP_LIST = [
   { city: "Seattle", note: "Start" },
-  { city: "Portland, OR", only: true },
+  { city: "Portland, OR", only: true, note: "Top 0.1%" },
   { city: "San Francisco" },
-  { city: "Ithaca, NY", only: true },
+  { city: "Denver", only: true },
+  { city: "Madison, WI", only: true, note: "Top 0.3%" },
+  { city: "Chicago" },
   { city: "Northampton, MA", only: true, note: "Top 0.1%" },
-  { city: "Burlington, VT", only: true, note: "Top 0.1%" },
-  { city: "Portland, ME", only: true },
-  { city: "Boston", note: "Finish" },
+  { city: "Boston", only: true, note: "Finish" },
 ];
 
 // Checked against Qloo's data on Oct 23, 2026.

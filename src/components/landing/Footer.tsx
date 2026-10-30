@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Logo } from "./Nav";
 import styles from "./Footer.module.css";
 
@@ -7,7 +8,8 @@ const LINKS = [
   { href: "#for", label: "Who it's for" },
   { href: "#venues", label: "For venues" },
   { href: "#brief", label: "Tour brief" },
-  { href: "#plan", label: "Plan a tour" },
+  { href: "/plan", label: "Plan a tour" },
+  { href: "/plan?mode=venue", label: "Book a room" },
 ];
 
 export default function Footer() {
@@ -20,11 +22,17 @@ export default function Footer() {
         </div>
 
         <nav aria-label="Footer" className={styles.links}>
-          {LINKS.map((l) => (
-            <a key={l.href} href={l.href}>
-              {l.label}
-            </a>
-          ))}
+          {LINKS.map((l) =>
+            l.href.startsWith("/") ? (
+              <Link key={l.href} href={l.href}>
+                {l.label}
+              </Link>
+            ) : (
+              <a key={l.href} href={l.href}>
+                {l.label}
+              </a>
+            ),
+          )}
         </nav>
 
         <details className={styles.credits}>

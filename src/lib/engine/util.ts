@@ -57,6 +57,20 @@ export function dedupeEntities<T extends { id: string; name: string }>(items: T[
   });
 }
 
+/**
+ * False for acts that can't be booked any more. Qloo has no death or split-up date, but its
+ * descriptions use the past tense for them ("Nipsey Hussle ... was an American rapper",
+ * "Frightened Rabbit was a Scottish indie rock band") and the present tense for active acts.
+ */
+export function isActiveAct(e: { description?: string }) {
+  const first = e.description?.split(/(?<=[.!?])\s/)[0];
+  if (!first) return true;
+  const past = first.match(/\b(was|were)\s+(an?|the|one)\b/i);
+  if (!past) return true;
+  const present = first.match(/\b(is|are)\s+(an?|the|one)\b/i);
+  return !!present && present.index! < past.index!;
+}
+
 /** Qloo labels artist genres differently per endpoint: urn:tag:genre, urn:tag:genre:music, urn:tag:genre:qloo. */
 export const isGenreTag = (t: { type: string }) =>
   t.type === "urn:tag:genre" || t.type === "urn:tag:genre:music" || t.type === "urn:tag:genre:qloo";

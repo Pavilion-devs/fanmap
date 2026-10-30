@@ -575,3 +575,13 @@
     display: none;
   }
 }
+
+/* Download PDF prints only the brief; everything else is marked data-noprint */
+@media print {
+  .main,
+  .after {
+    display: block;
+    margin: 0;
+    padding: 0;
+  }
+}
