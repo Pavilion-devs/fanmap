@@ -14,6 +14,7 @@ Built for the **[Qloo Agentic Hackathon](https://qloo.devpost.com/)**.
 
 ## Live
 
+- 🎥 **Demo video** — https://youtu.be/7sHSdtoshfM
 - 🌐 **Live app** — https://www.fanmap.xyz (no login)
 - 🗺️ **A real tour plan, replayed** — https://www.fanmap.xyz/plan?example=phoebe-us
 - 🎟️ **A real booking plan for a venue** — https://www.fanmap.xyz/plan?example=first-avenue
